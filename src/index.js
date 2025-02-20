@@ -25,7 +25,10 @@ async function testUpload() {
     const res = await setCurrentSpaceByDID(spaceName);
     console.log("Space Set Successfully:", res);
   }
-  // testUpload();
+
+  // Function calls for creating a new space, uploading a file, and setting a space
+
   // createSpace();
+  // testUpload();
   // setSpace();
   
