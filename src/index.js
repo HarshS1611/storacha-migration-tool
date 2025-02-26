@@ -1,5 +1,5 @@
 import { createNewStorachaSpace, setCurrentSpaceByDID, uploadToStoracha } from "./storachaService.js";
-
+import { createUniqueName } from "./utils/nameGenerator.js";
 
 async function testUpload() {
     const fileBuffer = Buffer.from("Hello Storacha 3!");
@@ -11,7 +11,7 @@ async function testUpload() {
   }
 
   async function createSpace() {
-    const spaceName = "test-space";
+    const spaceName = createUniqueName();
     
     console.log("Creating new Storacha space...");
     const res = await createNewStorachaSpace(spaceName);
