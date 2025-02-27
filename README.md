@@ -64,9 +64,9 @@ node dist/index.js
 
 ```sh
 node dist/index.js file <file-key>        # Upload a single file
-node dist/index.js directory <directory-path>   # Upload all files from a directory
-node dist/index.js createspace            # Create a new Storacha space
-node dist/index.js setspace <DID>         # Set the current Storacha space
+node dist/index.js dir <directory-path>   # Upload all files from a directory
+node dist/index.js create-space            # Create a new Storacha space
+node dist/index.js set-space <DID>         # Set the current Storacha space
 ```
 
 ## TypeScript Types
