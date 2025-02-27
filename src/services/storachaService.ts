@@ -2,7 +2,6 @@ import { create } from "@web3-storage/w3up-client";
 import type { Client } from "@web3-storage/w3up-client";
 import {
   UploadResponse,
-  StorachaServiceConfig,
   SpaceResponse,
 } from "../types/index.js";
 import dotenv from "dotenv";
@@ -141,7 +140,7 @@ export async function createNewStorachaSpace(
     const { client, account } = await initializeClient();
     await waitForPlanActivation(account);
 
-    const space = (await client.createSpace(spaceName)) as Space;
+    const space = (await client.createSpace(spaceName, {account} as any)) as Space;
     await client.setCurrentSpace(space.did() as any);
     console.log(
       `✅ New space created and set as current: ${spaceName} (DID: ${space.did()})`
