@@ -1,4 +1,4 @@
-import { Logger } from '../types';
+import { Logger } from '../types/index.js';
 
 export class DefaultLogger implements Logger {
   info(message: string, ...args: any[]): void {

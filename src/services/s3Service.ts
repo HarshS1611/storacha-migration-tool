@@ -4,12 +4,14 @@ import {
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { FileData, S3ServiceConfig } from "../types/index.js";
+import { EventManager } from "../managers/EventManager.js";
 
 export class S3Service {
   private readonly client: S3Client;
   private readonly config: S3ServiceConfig;
+  private eventManager?: EventManager;
 
-  constructor(config: S3ServiceConfig) {
+  constructor(config: S3ServiceConfig, eventManager?: EventManager) {
     this.config = config;
     this.client = new S3Client({
       region: config.region,
@@ -18,6 +20,7 @@ export class S3Service {
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
       },
     });
+    this.eventManager = eventManager;
   }
 
   /**
@@ -26,26 +29,31 @@ export class S3Service {
    * @returns {Promise<FileData>}
    */
   async fetchFileFromS3(fileKey: string): Promise<FileData> {
-    try {
-      console.log(
-        `Fetching file: ${fileKey} from S3 bucket: ${this.config.bucketName}`
-      );
-      const command = new GetObjectCommand({
-        Bucket: this.config.bucketName,
-        Key: fileKey,
-      });
-      const data = await this.client.send(command);
+    const command = new GetObjectCommand({
+      Bucket: this.config.bucketName,
+      Key: fileKey,
+    });
 
-      if (!data.Body) {
-        throw new Error("No data received from S3");
-      }
+    const response = await this.client.send(command);
+    const chunks: Uint8Array[] = [];
+    const totalBytes = Number(response.ContentLength) || 0;
+    let bytesReceived = 0;
 
-      const body = await data.Body.transformToByteArray();
-      return { buffer: Buffer.from(body), fileName: fileKey };
-    } catch (error) {
-      console.error("Error fetching file from S3:", error);
-      throw error;
+    if (!response.Body) {
+      throw new Error(`No body in response for file: ${fileKey}`);
     }
+
+    for await (const chunk of response.Body as any) {
+      chunks.push(chunk);
+      bytesReceived += chunk.length;
+      this.eventManager?.updateFileProgress(fileKey, bytesReceived, totalBytes);
+    }
+
+    const buffer = Buffer.concat(chunks);
+    return {
+      buffer,
+      fileName: fileKey.split("/").pop() || fileKey,
+    };
   }
 
   /**

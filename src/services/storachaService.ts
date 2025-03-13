@@ -189,9 +189,10 @@ export class StorachaClient {
     }
   }
 
-  static async connect(config: { endpoint: string; apiKey: string }): Promise<StorachaClient> {
+  static async connect(config: { email: `${string}@${string}` }): Promise<StorachaClient> {
     const client = new StorachaClient();
     await client.initialize();
+    await client.login(config.email);
     return client;
   }
 
@@ -220,6 +221,14 @@ export class StorachaClient {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
+    }
+  }
+
+  async login(email: `${string}@${string}`): Promise<void> {
+    try {
+      this.account = await this.client.login(email);
+    } catch (error) {
+      throw new Error(`Failed to login to Storacha: ${error}`);
     }
   }
 }

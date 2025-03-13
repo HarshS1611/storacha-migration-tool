@@ -1,2 +1,2 @@
-export { StorachaMigrator } from './StorachaMigrator';
-export * from './types';
+export { StorachaMigrator } from './StorachaMigrator.js';
+export type { MigrationProgress, StorachaMigratorConfig, FileData, UploadResponse, SpaceResponse, Logger } from './types/index.js';

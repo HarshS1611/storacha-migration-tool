@@ -5,13 +5,13 @@ import {
   UploadResponse,
   SpaceResponse,
   MigrationProgress,
-} from "./types";
-import { ConnectionManager } from "./managers/ConnectionManager";
-import { EventManager } from "./managers/EventManager";
-import { RetryManager } from "./managers/RetryManager";
-import { DefaultLogger } from "./utils/DefaultLogger";
-import { createUniqueName } from "./utils/nameGenerator";
-import { S3Service } from "./services/s3Service";
+} from "./types/index.js";
+import { ConnectionManager } from "./managers/ConnectionManager.js";
+import { EventManager } from "./managers/EventManager.js";
+import { RetryManager } from "./managers/RetryManager.js";
+import { DefaultLogger } from "./utils/DefaultLogger.js";
+import { createUniqueName } from "./utils/nameGenerator.js";
+import { S3Service } from "./services/s3Service.js";
 
 export class StorachaMigrator {
   private readonly config: StorachaMigratorConfig;
@@ -27,7 +27,7 @@ export class StorachaMigrator {
     this.connectionManager = new ConnectionManager(config);
     this.eventManager = new EventManager();
     this.retryManager = new RetryManager(config.retry, this.logger);
-    this.s3Service = new S3Service(config.s3);
+    this.s3Service = new S3Service(config.s3, this.eventManager);
   }
 
   async initialize(): Promise<void> {

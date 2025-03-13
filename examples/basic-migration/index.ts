@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { StorachaMigrator } from 'storacha-migration-tool';
+import type { MigrationProgress } from 'storacha-migration-tool';
 
 dotenv.config();
 
@@ -29,20 +30,32 @@ async function main() {
 
   try {
     await migrator.initialize();
+    console.log('\n🚀 Starting migration...\n');
 
-    migrator.onProgress((progress) => {
-      console.log(`Migration progress: ${progress.percentage}%`);
+    let lastProgress = 0;
+    migrator.onProgress((progress: any) => {
+      console.clear();
+      console.log(progress.formattedProgress, `${progress.percentage.toFixed(1)}%`);
+      console.log(`Current file: ${progress.currentFile || 'Preparing...'}`);
+      console.log(`Files: ${progress.completedFiles}/${progress.totalFiles}`);
+      console.log(`Speed: ${progress.uploadSpeed}/s`);
+      console.log(`Size: ${progress.uploadedSize} / ${progress.totalSize}`);
+      console.log(`Time: ${progress.estimatedTimeRemaining}`);
+      
+      if (progress.failedFiles > 0) {
+        console.log(`\n⚠️ Failed files: ${progress.failedFiles}`);
+      }
     });
 
-    migrator.onError((error, fileKey) => {
-      console.error(`Error migrating ${fileKey}: ${error.message}`);
+    migrator.onError((error: Error, fileKey?: string) => {
+      console.error(`\n❌ Error migrating ${fileKey}: ${error.message}`);
     });
 
-    await migrator.migrateFile('test.txt');
     await migrator.migrateDirectory('images');
+    console.log('\n✅ Migration completed successfully!\n');
 
   } catch (error) {
-    console.error('Migration failed:', error);
+    console.error('\n❌ Migration failed:', error);
   } finally {
     await migrator.close();
   }

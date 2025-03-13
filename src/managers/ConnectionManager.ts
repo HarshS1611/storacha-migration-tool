@@ -1,9 +1,9 @@
-import { S3 } from "@aws-sdk/client-s3";
-import { StorachaMigratorConfig } from "../types";
-import { StorachaClient } from "../services/storachaService";
+import { S3Client } from "@aws-sdk/client-s3";
+import { StorachaMigratorConfig } from "../types/index.js";
+import { StorachaClient } from "../services/storachaService.js";
 
 export class ConnectionManager {
-  private s3Connection: S3 | null = null;
+  private s3Connection: S3Client | null = null;
   private storachaConnection: StorachaClient | null = null;
   private readonly config: StorachaMigratorConfig;
 
@@ -13,19 +13,18 @@ export class ConnectionManager {
 
   async initializeConnections(): Promise<void> {
     try {
-      this.s3Connection = new S3({
+      this.s3Connection = new S3Client({
         region: this.config.s3.region,
         credentials: this.config.s3.credentials,
       });
 
-      if (!this.config.storacha.endpoint || !this.config.storacha.apiKey) {
-        throw new Error("Storacha endpoint and apiKey are required");
+      if (!this.config.storacha.email) {
+        throw new Error("Storacha email is required");
       }
 
-      this.storachaConnection = await StorachaClient.connect({
-        endpoint: this.config.storacha.endpoint,
-        apiKey: this.config.storacha.apiKey,
-      });
+      const client = new StorachaClient();
+      const validEmail = await client.validateEmail(this.config.storacha.email);
+      this.storachaConnection = await StorachaClient.connect({ email: validEmail });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to initialize connections: ${message}`);
@@ -43,7 +42,7 @@ export class ConnectionManager {
     }
   }
 
-  getS3Connection(): S3 {
+  getS3Connection(): S3Client {
     if (!this.s3Connection) {
       throw new Error("S3 connection not initialized");
     }
