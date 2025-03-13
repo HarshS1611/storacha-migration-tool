@@ -8,8 +8,6 @@ export interface StorachaMigratorConfig {
     };
   };
   storacha: {
-    endpoint?: string;
-    apiKey?: string;
     email?: string;
   };
   retry: {
@@ -67,4 +65,12 @@ export interface MigrationProgress {
   currentFile?: string;
   percentage: number;
   errors: Array<{ file: string; error: Error }>;
+  bytesUploaded: number;
+  totalBytes: number;
+  startTime: Date;
+  estimatedTimeRemaining: string;
+  formattedProgress?: string;
+  uploadSpeed?: string;
+  totalSize?: string;
+  uploadedSize?: string;
 }

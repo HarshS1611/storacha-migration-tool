@@ -1,4 +1,6 @@
-import { StorachaMigrator } from './StorachaMigrator';
+import dotenv from 'dotenv';
+import { StorachaMigrator } from './StorachaMigrator.js';
+dotenv.config();
 
 async function main() {
   const migrator = new StorachaMigrator({
@@ -6,12 +8,12 @@ async function main() {
       bucketName: process.env.S3_BUCKET_NAME || 'my-bucket',
       region: process.env.S3_REGION || 'us-east-1',
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
       }
     },
     storacha: {
-      email: process.env.STORACHA_EMAIL!
+      email: process.env.STORACHA_EMAIL || ''
     },
     retry: {
       maxAttempts: 3,
@@ -26,6 +28,7 @@ async function main() {
 
   try {
     await migrator.initialize();
+    console.log('Migrator initialized');
 
     migrator.onProgress((progress) => {
       console.log(`Migration progress: ${progress.percentage}%`);
@@ -43,6 +46,7 @@ async function main() {
   } finally {
     await migrator.close();
   }
+  
 }
 
 main().catch(console.error); 

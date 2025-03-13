@@ -1,5 +1,5 @@
-import { StorachaMigratorConfig } from "../types";
-import { Logger } from "../types";
+import { StorachaMigratorConfig } from "../types/index.js";
+import { Logger } from "../types/index.js";
 
 export class RetryManager {
   private readonly config: StorachaMigratorConfig["retry"];
