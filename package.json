@@ -2,8 +2,16 @@
   "name": "storacha-migration-tool",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "type": "module",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -17,7 +25,7 @@
     "@aws-sdk/client-s3": "^3.750.0",
     "@web3-storage/w3up-client": "^17.1.2",
     "dotenv": "^16.4.7",
-    "storacha-migration-tool": "file:"
+    "storacha-migration-tool": "*"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
