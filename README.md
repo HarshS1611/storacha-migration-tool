@@ -1,5 +1,7 @@
 # Storacha Migration Tool
 
+A robust library for migrating files and directories from AWS S3 to Storacha (Web3.Storage).
+
 This project is a TypeScript-based tool for transferring files and directories from an S3 bucket directly to Storacha using [w3up-client](https://docs.storacha.network/w3up-client/), without downloading them locally. You can achieve this using [AWS SDK](https://github.com/aws/aws-sdk-js-v3) for TypeScript to fetch the file as a stream and then pass it to Storacha's uploadFile.
 
 ## Prerequisites
@@ -79,3 +81,11 @@ The project includes TypeScript type definitions for all major components:
 - `StorachaServiceConfig`: Interface for Storacha configuration
 
 These types ensure type safety throughout the application and provide better IDE support.
+
+## License
+
+This project is licensed under the Permissive License Stack, meaning you can choose either the [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) or [MIT](https://opensource.org/licenses/MIT) license - see the [LICENSE.md](LICENSE.md) file for details.
+
+For more information about the Permissive License Stack, see Protocol Labs' [blog post](https://protocol.ai/blog/announcing-the-permissive-license-stack/).
+
+Copyright (c) 2025 Protocol Labs Dev Guild and contributors
