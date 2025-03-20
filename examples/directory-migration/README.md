@@ -14,7 +14,7 @@ npm link
 
 2. Set up the example project:
 ```bash
-# In examples/basic-migration
+# In examples/directory-migration
 npm install
 npm link storacha-migration-tool
 ```
@@ -72,7 +72,7 @@ npm run build
 # In the root directory
 npm link
 
-# In examples/basic-migration
+# In examples/directory-migration
 npm link storacha-migration-tool
 ```
 

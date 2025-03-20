@@ -1,0 +1,18 @@
+{
+  "name": "basic-migration-example",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js"
+  },
+  "dependencies": {
+    "basic-migration-example": "file:",
+    "dotenv": "^16.4.7",
+    "storacha-migration-tool": "file:../../storacha-migration-tool"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.3"
+  }
+}
