@@ -51,7 +51,7 @@ async function main() {
       console.error(`\n❌ Error migrating ${fileKey}: ${error.message}`);
     });
 
-    await migrator.migrateDirectory('images');
+    await migrator.migrateDirectory('medFile');
     console.log('\n✅ Migration completed successfully!\n');
 
   } catch (error) {

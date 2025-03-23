@@ -1,7 +1,14 @@
 import { create, Client } from "@web3-storage/w3up-client";
 import { UploadResponse, SpaceResponse } from "../types/index.js";
+import { uploadDirectory, uploadFile } from '@web3-storage/upload-client'
+import { store } from '@web3-storage/capabilities/store'
+import { upload } from '@web3-storage/capabilities/upload'
 import dotenv from "dotenv";
+import { InvocationConfig, ProgressStatus } from "@web3-storage/upload-client/types";
+
 dotenv.config();
+
+
 
 interface IStorachaClient extends Client {
   login: (email: `${string}@${string}`) => Promise<any>;
@@ -96,9 +103,21 @@ export class StorachaClient {
       await client.setCurrentSpace(space.did as any);
       console.log(`✅ Using existing space: ${space.did}`);
 
+      const conf: InvocationConfig = {
+        issuer: client.agent.issuer,
+        with: space.did as `did:${string}:${string}`,
+        proofs: client.proofs(),
+      };
+
       const file = new File([fileBuffer], fileName);
       console.log(`📤 Uploading file: ${fileName}...`);
-      const cid = await client.uploadFile(file);
+      const cid = await uploadFile(conf,file,
+        {
+          onUploadProgress: (progress: any) => {
+            console.log(`📊 Uploading... ${Math.floor(Number(progress.loaded)/Number(progress.total) * 100)}%`);
+          }
+        }
+      );
       console.log(`✅ File uploaded successfully! CID: ${cid.toString()}`);
 
       return {
@@ -138,9 +157,18 @@ export class StorachaClient {
       const files = filesArray.map(
         ({ buffer, fileName }) => new File([buffer], fileName)
       );
+      const conf: InvocationConfig = {
+        issuer: client.agent.issuer,
+        with: space.did as `did:${string}:${string}`,
+        proofs: client.agent.proofs(),
+      };
 
       console.log(`📂 Uploading ${files.length} files as a directory...`);
-      const directoryCid = await client.uploadDirectory(files);
+      const directoryCid = await uploadDirectory(conf, files, {
+        onUploadProgress: (progress: any) => {
+          console.log(`📊 Uploading... ${Math.floor(Number(progress.loaded)/Number(progress.total) * 100)}%`);
+        }
+      });
       console.log(`✅ Directory uploaded successfully! CID: ${directoryCid}`);
 
       return {
