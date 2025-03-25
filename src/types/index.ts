@@ -69,8 +69,29 @@ export interface MigrationProgress {
   totalBytes: number;
   startTime: Date;
   estimatedTimeRemaining: string;
-  formattedProgress?: string;
-  uploadSpeed?: string;
-  totalSize?: string;
-  uploadedSize?: string;
+  formattedProgress: string;
+  phase: 'download' | 'upload' | 'preparing';
+  downloadProgress: number;
+  uploadProgress: number;
+  downloadSpeed: string;
+  uploadSpeed: string;
+  downloadBar: string;
+  uploadBar: string;
+  totalSize: string;
+  uploadedSize: string;
+  currentShardIndex?: number;
+  totalShards?: number;
+  downloadedBytes: number;
+  uploadedBytes: number;
+  totalDownloadBytes: number;
+  totalUploadBytes: number;
+}
+
+export interface ProgressStatus {
+  loaded: number;
+  total: number;
+  phase: 'download' | 'upload' | 'preparing';
+  shardIndex?: number;
+  totalShards?: number;
+  currentFile?: string;
 }

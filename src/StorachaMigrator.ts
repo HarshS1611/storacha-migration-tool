@@ -70,18 +70,35 @@ export class StorachaMigrator {
         throw new Error("⚠️ No files found in directory");
       }
 
+      // Initialize progress with preparing phase
       this.eventManager.updateProgress({
         totalFiles: fileKeys.length,
         completedFiles: 0,
         percentage: 0,
+        phase: 'preparing'
       });
 
+      // Wait a moment for the UI to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Download phase
+      this.eventManager.updateProgress({ phase: 'download' });
+      await new Promise(resolve => setTimeout(resolve, 100));
       const filesData = await this.s3Service.fetchFilesInBatches(fileKeys);
+      
+      // Wait for download progress to be displayed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Upload phase
+      this.eventManager.updateProgress({ phase: 'upload' });
+      await new Promise(resolve => setTimeout(resolve, 100));
       const result = await storacha.uploadDirectoryToStoracha(filesData);
 
+      // Final update
       this.eventManager.updateProgress({
         completedFiles: fileKeys.length,
         percentage: 100,
+        phase: 'preparing'
       });
 
       return result;
