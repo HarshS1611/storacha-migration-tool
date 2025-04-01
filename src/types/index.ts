@@ -59,32 +59,35 @@ export interface Logger {
 }
 
 export interface MigrationProgress {
+  status: 'preparing' | 'completed' | 'idle' | 'downloading' | 'uploading' | 'error';
+  phase: 'preparing' | 'download' | 'upload' | 'completed' | 'failed';
+  percentage: number;
   totalFiles: number;
   completedFiles: number;
   failedFiles: number;
+  remainingFiles: number;
   currentFile?: string;
-  percentage: number;
-  errors: Array<{ file: string; error: Error }>;
-  bytesUploaded: number;
+  currentBatch?: number;
+  totalBatches?: number;
+  startTime?: Date;
+  endTime?: Date;
+  elapsedTime: number;
   totalBytes: number;
-  startTime: Date;
-  estimatedTimeRemaining: string;
-  formattedProgress: string;
-  phase: 'download' | 'upload' | 'preparing';
-  downloadProgress: number;
-  uploadProgress: number;
-  downloadSpeed: string;
-  uploadSpeed: string;
-  downloadBar: string;
-  uploadBar: string;
-  totalSize: string;
+  processedBytes: number;
+  bytesUploaded: number;
   uploadedSize: string;
+  downloadSpeed: number;
+  uploadSpeed: number;
+  estimatedTimeRemaining: string;
+  downloadedBytes: number;
+  totalDownloadBytes: number;
+  uploadedBytes: number;
+  totalUploadBytes: number;
   currentShardIndex?: number;
   totalShards?: number;
-  downloadedBytes: number;
-  uploadedBytes: number;
-  totalDownloadBytes: number;
-  totalUploadBytes: number;
+  errors: Array<{ file: string; error: Error }>;
+  transferProgress?: TransferProgress;
+  shardProgress?: ShardProgress;
 }
 
 export interface ProgressStatus {
@@ -94,4 +97,102 @@ export interface ProgressStatus {
   shardIndex?: number;
   totalShards?: number;
   currentFile?: string;
+}
+
+export interface StorachaMigratorEvents {
+  onProgress: (progress: MigrationProgress) => void;
+  onError: (error: Error, fileKey?: string) => void;
+  onFileComplete: (fileKey: string, result: UploadResponse) => void;
+}
+
+export interface BatchConfig {
+  concurrency: number;
+  size: number;
+}
+
+export interface RetryConfig {
+  maxAttempts: number;
+  backoffMs: number;
+  maxBackoffMs: number;
+}
+
+export interface StorachaConfig {
+  email?: string;
+  spaceName?: string;
+  did?: string;
+}
+
+export interface ConnectionConfig {
+  s3: S3ServiceConfig;
+  storacha: StorachaConfig;
+}
+
+export interface MigrationResult {
+  success: boolean;
+  cid?: string;
+  url?: string;
+  size?: number;
+  error?: string;
+  failedFiles?: Array<{ file: string; error: Error }>;
+  completedFiles?: number;
+  totalFiles?: number;
+}
+
+export interface MigrationOptions {
+  batchSize?: number;
+  concurrency?: number;
+  retryAttempts?: number;
+  progressCallback?: (progress: MigrationProgress) => void;
+  errorCallback?: (error: Error, fileKey?: string) => void;
+}
+
+export interface StorachaMigratorInterface {
+  initialize(): Promise<void>;
+  close(): Promise<void>;
+  migrateFile(fileKey: string): Promise<UploadResponse>;
+  migrateDirectory(directoryPath: string): Promise<UploadResponse>;
+  createSpace(): Promise<SpaceResponse>;
+  setSpace(did: string): Promise<SpaceResponse>;
+  onProgress(callback: (progress: MigrationProgress) => void): void;
+  onError(callback: (error: Error, fileKey?: string) => void): void;
+}
+
+export interface ShardProgress {
+  shardIndex: number;
+  totalShards: number;
+  bytesUploaded: number;
+  bytesTotal: number;
+  percentage: number;
+  currentShard?: number;
+  shardSize?: number;
+}
+
+export interface TransferProgress {
+  bytesTransferred: number;
+  bytesTotal: number;
+  percentage: number;
+  speed: number;
+  estimatedTimeRemaining: string;
+  lastUpdate: number;
+  lastDownloadBytes: number;
+  lastUploadBytes: number;
+  downloadBytes: number;
+  uploadBytes: number;
+  downloadSpeed: number;
+  uploadSpeed: number;
+}
+
+export interface LogEntry {
+  timestamp: string;
+  message: string;
+  data?: Partial<MigrationProgress> | {
+    shardIndex: number;
+    totalShards: number;
+    percentage: number;
+    size: string;
+  } | {
+    fileKey?: string;
+    result?: any;
+    error?: Error;
+  };
 }

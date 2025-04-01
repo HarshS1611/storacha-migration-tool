@@ -45,6 +45,7 @@
     "storacha-migration-tool": "file:"
   },
   "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
     "@types/node": "^20.11.24",
     "typescript": "^5.3.3"
   }

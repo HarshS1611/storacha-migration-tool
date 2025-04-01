@@ -186,8 +186,10 @@ export class StorachaClient {
 
       // Calculate total upload size
       const totalUploadBytes = filesArray.reduce((acc, file) => acc + file.buffer.length, 0);
+      let totalBytesUploaded = 0;
+      let lastBytesUploaded = 0;
 
-      console.log(`📂 Uploading ${files.length} files as a directory...`);
+      console.log(`📂 Uploading ${files.length} files as a directory (Total size: ${this.formatBytes(totalUploadBytes)})...`);
       
       // Step 3: Initialize upload progress
       this.eventManager?.updateProgress({
@@ -197,24 +199,46 @@ export class StorachaClient {
         currentFile: 'Starting directory upload...',
         totalFiles: files.length,
         completedFiles: 0,
-        percentage: 0
+        percentage: 0,
+        uploadSpeed: 0
       });
-      
+
       // Step 4: Start upload with progress tracking
       let lastProgressUpdate = Date.now();
+      let uploadStartTime = Date.now();
+      let lastSpeedUpdate = Date.now();
+      let uploadSpeed = 0;
+
       const directoryCid = await uploadDirectory(conf, files, {
         onUploadProgress: (progress: ProgressStatus) => {
           const now = Date.now();
           if (now - lastProgressUpdate > 100) { // Throttle updates to every 100ms
-            const loaded = progress.loaded || 0;
-            const percentage = (loaded / totalUploadBytes) * 100;
+            // Calculate actual bytes uploaded
+            const currentBytesUploaded = progress.loaded || 0;
+            if (currentBytesUploaded > lastBytesUploaded) {
+              totalBytesUploaded += (currentBytesUploaded - lastBytesUploaded);
+              lastBytesUploaded = currentBytesUploaded;
+            }
+
+            // Calculate upload speed every second
+            if (now - lastSpeedUpdate > 1000) {
+              const elapsedSeconds = (now - uploadStartTime) / 1000;
+              const bytesPerSecond = totalBytesUploaded / elapsedSeconds;
+              uploadSpeed = bytesPerSecond;
+              lastSpeedUpdate = now;
+            }
+
+            const percentage = (totalBytesUploaded / totalUploadBytes) * 100;
+            
+            console.log(`Debug: Upload progress - ${this.formatBytes(totalBytesUploaded)}/${this.formatBytes(totalUploadBytes)} (${percentage.toFixed(1)}%) at ${this.formatBytes(uploadSpeed)}/s`);
             
             this.eventManager?.updateProgress({
               phase: 'upload',
-              uploadedBytes: loaded,
+              uploadedBytes: totalBytesUploaded,
               totalUploadBytes,
               percentage,
-              currentFile: `Uploading directory (${this.formatBytes(loaded)}/${this.formatBytes(totalUploadBytes)})`
+              uploadSpeed,
+              currentFile: `Uploading directory (${this.formatBytes(totalBytesUploaded)}/${this.formatBytes(totalUploadBytes)})`
             });
             
             lastProgressUpdate = now;
@@ -223,29 +247,43 @@ export class StorachaClient {
         onShardStored: (meta: any) => {
           if (meta && typeof meta.shardIndex === 'number' && typeof meta.totalShards === 'number') {
             const shardSize = totalUploadBytes / meta.totalShards;
-            const uploadedBytes = (meta.shardIndex + 1) * shardSize;
+            const uploadedBytes = Math.min((meta.shardIndex + 1) * shardSize, totalUploadBytes);
             const percentage = (uploadedBytes / totalUploadBytes) * 100;
+            
+            console.log(`Debug: Shard ${meta.shardIndex + 1}/${meta.totalShards} stored (${percentage.toFixed(1)}%)`);
             
             this.eventManager?.updateProgress({
               phase: 'upload',
               uploadedBytes,
               totalUploadBytes,
               percentage,
+              uploadSpeed,
               currentShardIndex: meta.shardIndex,
               totalShards: meta.totalShards,
               currentFile: `Processing shard ${meta.shardIndex + 1}/${meta.totalShards}`
             });
+
+            // Update total bytes uploaded if shard tracking shows more progress
+            if (uploadedBytes > totalBytesUploaded) {
+              totalBytesUploaded = uploadedBytes;
+              lastBytesUploaded = uploadedBytes;
+            }
           }
         },
         fetchWithUploadProgress
       });
 
       // Step 5: Show completion
+      const uploadDuration = (Date.now() - uploadStartTime) / 1000;
+      const averageUploadSpeed = uploadDuration > 0 ? totalUploadBytes / uploadDuration : 0;
+      
       this.eventManager?.updateProgress({
         phase: 'upload',
+        status: 'completed',
         uploadedBytes: totalUploadBytes,
         totalUploadBytes,
         percentage: 100,
+        uploadSpeed: averageUploadSpeed,
         currentFile: 'Upload complete!',
         completedFiles: files.length
       });

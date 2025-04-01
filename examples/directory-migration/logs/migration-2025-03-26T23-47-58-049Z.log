@@ -1,0 +1,338 @@
+[2025-03-26T23:47:58.050Z] Migration started
+[2025-03-26T23:47:59.282Z] Progress update
+{
+  "phase": "preparing",
+  "status": "preparing",
+  "percentage": "0.00%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/0 B",
+  "transferProgress": {
+    "bytesTransferred": 0,
+    "bytesTotal": 0,
+    "percentage": 0,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "1s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:47:59.388Z] Phase changed from preparing to download
+[2025-03-26T23:47:59.388Z] DOWNLOAD Progress
+{
+  "percentage": "0.00%",
+  "speed": "0 B/s",
+  "processed": "0 B",
+  "total": "0 B",
+  "timeElapsed": "1s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:47:59.389Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "0.00%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/0 B",
+  "transferProgress": {
+    "bytesTransferred": 0,
+    "bytesTotal": 0,
+    "percentage": 0,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "1s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:09.816Z] DOWNLOAD Progress
+{
+  "percentage": "0.00%",
+  "speed": "0 B/s",
+  "processed": "0 B",
+  "total": "498.87 KB",
+  "timeElapsed": "11s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:09.816Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "0.00%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 0,
+    "bytesTotal": 510845,
+    "percentage": 0,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "11s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:10.974Z] DOWNLOAD Progress
+{
+  "percentage": "0.00%",
+  "speed": "0 B/s",
+  "processed": "0 B",
+  "total": "498.87 KB",
+  "timeElapsed": "12s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:10.974Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "0.00%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 0,
+    "bytesTotal": 510845,
+    "percentage": 0,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "12s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:11.169Z] DOWNLOAD Progress
+{
+  "percentage": "3.32%",
+  "speed": "0 B/s",
+  "processed": "16.54 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "13s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:11.170Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "1.66%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 16937,
+    "bytesTotal": 510845,
+    "percentage": 3.3154870851236673,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "13s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:11.435Z] DOWNLOAD Progress
+{
+  "percentage": "6.52%",
+  "speed": "0 B/s",
+  "processed": "32.53 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "13s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:11.436Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "3.26%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 33315,
+    "bytesTotal": 510845,
+    "percentage": 6.521547631864852,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "13s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:11.695Z] DOWNLOAD Progress
+{
+  "percentage": "16.74%",
+  "speed": "0 B/s",
+  "processed": "83.53 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "13s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:11.696Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "8.37%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 85539,
+    "bytesTotal": 510845,
+    "percentage": 16.74460942164453,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "13s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:11.951Z] DOWNLOAD Progress
+{
+  "percentage": "33.78%",
+  "speed": "0 B/s",
+  "processed": "168.53 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "13s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:11.951Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "16.89%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 172579,
+    "bytesTotal": 510845,
+    "percentage": 33.78304573794399,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "13s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:12.205Z] DOWNLOAD Progress
+{
+  "percentage": "39.67%",
+  "speed": "40.19 KB/s",
+  "processed": "197.91 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "14s",
+  "timeRemaining": "7s remaining"
+}
+[2025-03-26T23:48:12.205Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "19.84%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 202664,
+    "bytesTotal": 510845,
+    "percentage": 39.67230764713367,
+    "speed": "40.19 KB/s",
+    "estimatedTimeRemaining": "7s remaining"
+  },
+  "elapsedTime": "14s",
+  "timeRemaining": "7s remaining",
+  "speed": "40.19 KB/s"
+}
+[2025-03-26T23:48:12.509Z] DOWNLOAD Progress
+{
+  "percentage": "3.74%",
+  "speed": "0 B/s",
+  "processed": "18.64 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "14s",
+  "timeRemaining": "11s remaining"
+}
+[2025-03-26T23:48:12.509Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "1.87%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 19087,
+    "bytesTotal": 510845,
+    "percentage": 3.73635838659476,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "11s remaining"
+  },
+  "elapsedTime": "14s",
+  "timeRemaining": "11s remaining",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:12.779Z] DOWNLOAD Progress
+{
+  "percentage": "3.42%",
+  "speed": "0 B/s",
+  "processed": "17.04 KB",
+  "total": "498.87 KB",
+  "timeElapsed": "14s",
+  "timeRemaining": "11s remaining"
+}
+[2025-03-26T23:48:12.780Z] Progress update
+{
+  "phase": "download",
+  "status": "downloading",
+  "percentage": "1.71%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 17449,
+    "bytesTotal": 510845,
+    "percentage": 3.4157131811018995,
+    "speed": "0 B/s",
+    "estimatedTimeRemaining": "11s remaining"
+  },
+  "elapsedTime": "14s",
+  "timeRemaining": "11s remaining",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:13.295Z] Phase changed from download to upload
+[2025-03-26T23:48:13.296Z] UPLOAD Progress
+{
+  "percentage": "0.00%",
+  "speed": "NaN undefined/s",
+  "processed": "0 B",
+  "total": "498.87 KB",
+  "timeElapsed": "15s",
+  "timeRemaining": "Calculating..."
+}
+[2025-03-26T23:48:13.296Z] Progress update
+{
+  "phase": "upload",
+  "status": "uploading",
+  "percentage": "1.71%",
+  "completedFiles": "0/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 0,
+    "bytesTotal": 510845,
+    "percentage": 0,
+    "speed": "NaN undefined/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "15s",
+  "timeRemaining": "Calculating...",
+  "speed": "NaN undefined/s"
+}
+[2025-03-26T23:48:23.714Z] Phase changed from upload to preparing
+[2025-03-26T23:48:23.714Z] Progress update
+{
+  "phase": "preparing",
+  "status": "completed",
+  "percentage": "1.71%",
+  "completedFiles": "5/5",
+  "bytesUploaded": "0 B/997.74 KB",
+  "transferProgress": {
+    "bytesTransferred": 0,
+    "bytesTotal": 510845,
+    "percentage": 0,
+    "speed": "NaN undefined/s",
+    "estimatedTimeRemaining": "Calculating..."
+  },
+  "elapsedTime": "25s",
+  "timeRemaining": "Calculating...",
+  "speed": "0 B/s"
+}
+[2025-03-26T23:48:23.719Z] Migration session ended
