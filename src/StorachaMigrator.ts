@@ -15,6 +15,7 @@ import { RetryManager } from "./managers/RetryManager.js";
 import { DefaultLogger } from "./utils/DefaultLogger.js";
 import { createUniqueName } from "./utils/nameGenerator.js";
 import { S3Service } from "./services/s3Service.js";
+import { UploadListItem } from "@web3-storage/upload-client/types";
 
 export class StorachaMigrator implements StorachaMigratorInterface {
   private readonly config: StorachaMigratorConfig;
@@ -198,6 +199,34 @@ export class StorachaMigrator implements StorachaMigratorInterface {
       const storacha = this.connectionManager.getStorachaConnection();
       return await storacha.setCurrentSpaceByDID(did);
     }, `set space ${did}`);
+  }
+
+  /**
+   * Lists all spaces
+   * @returns {Promise<SpaceResponse[]>}
+   */
+  async listSpaces(): Promise<SpaceResponse[]> {
+    return await this.retryManager.withRetry(async () => {
+      this.logger.info(`📜 Listing all spaces`);
+
+      const storacha = this.connectionManager.getStorachaConnection();
+      return await storacha.getAllSpaces();
+    }, "list spaces");
+  }
+
+  /**
+   * Deletes a space by DID
+   * @param {string} did - The DID of the space
+   * @returns {Promise<void>}
+   */
+
+  async listFilesInSpace(did: string): Promise<UploadListItem[]> {
+    return await this.retryManager.withRetry(async () => {
+      this.logger.info(`📜 Listing all files in space: ${did}`);
+
+      const storacha = this.connectionManager.getStorachaConnection();
+      return await storacha.getAllUploads();
+    }, `list all uploaded files`);
   }
 
   /**

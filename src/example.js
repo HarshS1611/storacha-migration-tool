@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { StorachaMigrator } from './StorachaMigrator.js';
+import { StorachaMigrator } from 'storacha-migration-tool';
 dotenv.config();
 
 async function main() {
@@ -30,17 +30,22 @@ async function main() {
     await migrator.initialize();
     console.log('Migrator initialized');
 
-    migrator.onProgress((progress) => {
-      console.log(`Migration progress: ${progress.percentage}%`);
-    });
+    // migrator.onProgress((progress) => {
+    //   console.log(`Migration progress: ${progress.percentage}%`);
+    // });
 
-    migrator.onError((error, fileKey) => {
-      console.error(`Error migrating ${fileKey}: ${error.message}`);
-    });
+    // migrator.onError((error, fileKey) => {
+    //   console.error(`Error migrating ${fileKey}: ${error.message}`);
+    // });
 
-    await migrator.migrateFile('HarshSinghResume.pdf');
+    // await migrator.migrateFile('HarshSinghResume.pdf');
 
-    await migrator.migrateDirectory('images1');
+    // await migrator.migrateDirectory('images1');
+
+    const res = await migrator.listSpaces();
+    console.log('Spaces:', res);
+    const res2 = await migrator.listFilesInSpace();
+    console.log('Files in space:', res2);
   } catch (error) {
     console.error('Migration failed:', error);
   } finally {

@@ -6,7 +6,7 @@ import { upload } from '@web3-storage/capabilities/upload'
 import { fetchWithUploadProgress } from '@web3-storage/upload-client/fetch-with-upload-progress'
 import { EventManager } from "../managers/EventManager.js";
 import dotenv from "dotenv";
-import { InvocationConfig, ProgressStatus } from "@web3-storage/upload-client/types";
+import { InvocationConfig, ProgressStatus, UploadListItem } from "@web3-storage/upload-client/types";
 
 dotenv.config();
 
@@ -383,6 +383,39 @@ export class StorachaClient {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
       };
+    }
+  }
+
+  async getAllSpaces(): Promise<SpaceResponse[]> {
+    try {
+      console.log("🔍 Fetching all spaces...");
+      const { client } = await this.initializeClient();
+      const spaces = client.spaces();
+      console.log(`✅ Found ${spaces.length} spaces.`);
+
+      return spaces.map((space) => ({
+        success: true,
+        did: space.did(),
+        name: space.name,
+      }));
+    } catch (error) {
+      console.error("❌ Error fetching all spaces:", error);
+      return [];
+    }
+  }
+
+  async getAllUploads(): Promise<UploadListItem[]> {
+    try {
+      console.log("🔍 Fetching all uploads...");
+      const { client } = await this.initializeClient();
+      const uploads = await client.capability.upload.list();
+      console.log(`✅ Found ${uploads.size} uploads.`);
+
+      return uploads.results;
+      
+    } catch (error) {
+      console.error("❌ Error fetching all uploads:", error);
+      return [];
     }
   }
 
