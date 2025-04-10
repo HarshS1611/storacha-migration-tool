@@ -28,6 +28,21 @@ interface S3Config {
   objectKey: string;
 }
 
+interface S3File {
+  name: string;
+  size: number;
+  type: string;
+  s3: {
+    region: string;
+    bucketName: string;
+    key: string;
+    credentials: {
+      accessKeyId: string;
+      secretAccessKey: string;
+    }
+  }
+}
+
 interface DownloadProgress {
   loaded: number;
   total: number;
@@ -42,7 +57,7 @@ interface DownloadProgress {
 }
 
 interface S3DownloaderProps {
-  onFileDownload: (file: File) => void;
+  onFileDownload: (file: S3File) => void;
 }
 
 export const S3Downloader: React.FC<S3DownloaderProps> = ({ onFileDownload }: S3DownloaderProps) => {
@@ -123,7 +138,7 @@ export const S3Downloader: React.FC<S3DownloaderProps> = ({ onFileDownload }: S3
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: 'migrateFile',
+          action: 'downloadFromS3',
           s3Config: {
             region: config.region,
             bucketName: config.bucketName,
@@ -149,24 +164,34 @@ export const S3Downloader: React.FC<S3DownloaderProps> = ({ onFileDownload }: S3
       if (!result.success) {
         throw new Error(result.message || 'Failed to download file');
       }
-      
-      // Use the metadata returned from the API
-      const file = new File(
-        [new Uint8Array(10)], // This is a placeholder - we'd need actual file data
-        result.fileName || config.objectKey.split('/').pop() || 'downloaded-file',
-        { type: result.contentType || 'application/octet-stream' }
-      );
+
+      // Create a virtual file with the S3 metadata
+      const file: S3File = {
+        name: config.objectKey.split('/').pop() || 'downloaded-file',
+        size: result.size,
+        type: result.contentType || 'application/octet-stream',
+        s3: {
+          region: config.region,
+          bucketName: config.bucketName,
+          key: config.objectKey,
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey
+          }
+        }
+      };
 
       setProgress(prev => ({
         ...prev,
         status: 'completed',
         percentage: 100,
-        loaded: file.size,
-        total: file.size,
+        loaded: result.size,
+        total: result.size,
         endTime: new Date(),
+        fileName: file.name
       }));
 
-      // Call the callback with the file
+      // Call the callback with the file metadata
       onFileDownload(file);
     } catch (error) {
       setProgress(prev => ({
@@ -295,8 +320,7 @@ export const S3Downloader: React.FC<S3DownloaderProps> = ({ onFileDownload }: S3
           <h3 className="text-lg font-medium">Download Progress</h3>
           
           <ProgressBar 
-            progress={progress.percentage} 
-            label="Download Progress" 
+            percentage={progress.percentage}
             color={
               progress.status === 'error' 
                 ? 'red' 

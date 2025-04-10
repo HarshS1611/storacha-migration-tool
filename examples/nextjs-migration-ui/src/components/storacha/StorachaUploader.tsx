@@ -3,8 +3,23 @@ import { ProgressBar } from '../common/ProgressBar';
 import { formatBytes, formatTime, formatSpeed } from '@/utils/formatters';
 import { BrowserMigrator } from '@/utils/BrowserMigrator';
 
+interface S3File {
+  name: string;
+  size: number;
+  type: string;
+  s3?: {
+    region: string;
+    bucketName: string;
+    key: string;
+    credentials: {
+      accessKeyId: string;
+      secretAccessKey: string;
+    }
+  }
+}
+
 interface StorachaUploaderProps {
-  file?: File;
+  file?: S3File;
 }
 
 interface StorachaConfig {
@@ -138,44 +153,39 @@ export const StorachaUploader: React.FC<StorachaUploaderProps> = ({ file }: Stor
         fileName: file.name
       });
 
-      console.log(`Uploading file ${file.name} (${file.size} bytes) with email: ${config.email}`);
-
-      // Create FormData to send the file
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('email', config.email);
-      if (config.space) {
-        formData.append('space', config.space);
-      }
-      
-      // Use fetch instead of XMLHttpRequest for better streaming support
-      try {
+      // If we have S3 metadata, use direct migration
+      if (file.s3) {
         const response = await fetch('/api/storacha-upload', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: config.email,
+            space: config.space,
+            isS3Source: true,
+            s3Config: file.s3,
+            s3Path: file.s3.key
+          }),
         });
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Upload failed');
         }
-        
+
         // Handle streaming updates
         const reader = response.body?.getReader();
         let finalResult: UploadResponse | null = null;
-        
+
         if (reader) {
-          // Read progress updates until done
           let buffer = '';
-          
           while (true) {
             const { done, value } = await reader.read();
             
             if (done) {
-              // Process any remaining data in the buffer before breaking
               if (buffer.trim()) {
                 try {
-                  // Try to parse the final result from the buffer
                   const lastLine = buffer.split('\n').filter(line => line.trim()).pop();
                   if (lastLine && lastLine.includes('"success":')) {
                     finalResult = JSON.parse(lastLine);
@@ -187,67 +197,42 @@ export const StorachaUploader: React.FC<StorachaUploaderProps> = ({ file }: Stor
               break;
             }
             
-            // Convert the chunk to text and append to buffer
             const chunk = new TextDecoder().decode(value);
             buffer += chunk;
             
-            // Process any complete JSON messages in the buffer
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Keep the incomplete line in the buffer
+            buffer = lines.pop() || '';
             
             for (const line of lines) {
-              if (line.trim() && line.includes('{')) {
-                try {
-                  const update = JSON.parse(line);
-                  
-                  // Handle phase updates
-                  if (update.phase) {
-                    const percentage = update.percentage ?? 0;
-                    
-                    // Update the progress
-                    setProgress(prev => ({
-                      ...prev,
-                      phase: update.phase,
-                      phaseMessage: update.message,
-                      percentage: percentage,
-                      status: update.phase === 'completed' ? 'completed' : 
-                              update.phase === 'error' ? 'error' : 'uploading'
-                    }));
-                  }
-                  
-                  // Handle final result embedded in the stream
-                  if (update.success !== undefined && update.cid) {
-                    finalResult = update;
-                  }
-                } catch (e) {
-                  console.error('Error parsing progress update:', e, line);
+              if (!line.trim()) continue;
+              
+              try {
+                const update = JSON.parse(line);
+                if (update.phase) {
+                  setProgress(prev => ({
+                    ...prev,
+                    phase: update.phase,
+                    phaseMessage: update.message,
+                    percentage: update.percentage || prev.percentage
+                  }));
                 }
+              } catch (e) {
+                console.error('Error parsing progress update:', e);
               }
             }
           }
           
-          // If we got a final result from the stream, process it
-          if (finalResult && finalResult.success && finalResult.cid) {
+          if (finalResult?.success) {
             handleUploadComplete(finalResult);
-          } else if (!finalResult) {
-            // Something went wrong and we didn't get a final result
-            throw new Error('No final result received from server');
+          } else {
+            throw new Error(finalResult?.error || 'Upload failed');
           }
-        } else {
-          throw new Error('Unable to read response stream');
         }
-      } catch (error) {
-        console.error('Error during upload:', error);
-        setProgress(prev => ({
-          ...prev,
-          status: 'error',
-          phase: 'error',
-          phaseMessage: error instanceof Error ? error.message : 'Unknown error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        }));
-        setIsLoading(false);
+      } else {
+        throw new Error('No S3 metadata found for the file');
       }
     } catch (error) {
+      console.error('Error during upload:', error);
       setProgress(prev => ({
         ...prev,
         status: 'error',
@@ -255,6 +240,7 @@ export const StorachaUploader: React.FC<StorachaUploaderProps> = ({ file }: Stor
         phaseMessage: error instanceof Error ? error.message : 'Unknown error',
         error: error instanceof Error ? error.message : 'Unknown error',
       }));
+    } finally {
       setIsLoading(false);
     }
   };
@@ -344,6 +330,11 @@ export const StorachaUploader: React.FC<StorachaUploaderProps> = ({ file }: Stor
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="text-sm font-medium text-yellow-800">No File Selected</h3>
           <p className="text-yellow-700">Please download a file from S3 first.</p>
+          <ProgressBar
+            percentage={0}
+            color="storacha"
+            height="lg"
+          />
         </div>
       )}
       
@@ -434,14 +425,13 @@ export const StorachaUploader: React.FC<StorachaUploaderProps> = ({ file }: Stor
             </div>
           )}
           
-          <ProgressBar 
-            progress={progress.percentage} 
-            label="Overall Progress" 
+          <ProgressBar
+            percentage={progress.percentage}
             color={
-              progress.status === 'error' 
-                ? 'red' 
-                : progress.status === 'completed' 
-                  ? 'green' 
+              progress.status === 'error'
+                ? 'red'
+                : progress.status === 'completed'
+                  ? 'green'
                   : 'storacha'
             }
             height="lg"
@@ -450,9 +440,8 @@ export const StorachaUploader: React.FC<StorachaUploaderProps> = ({ file }: Stor
           {progress.shardProgress && (
             <div className="mt-2">
               <ProgressBar 
-                progress={progress.shardProgress.percentage} 
-                label={`Shard ${progress.shardProgress.shardIndex + 1}/${progress.shardProgress.totalShards}`} 
-                color="yellow"
+                percentage={progress.shardProgress.percentage} 
+                color="storacha"
               />
             </div>
           )}

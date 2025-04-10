@@ -1,14 +1,6 @@
-import { useState } from 'react';
-import { S3Downloader } from '@/components/s3/S3Downloader';
-import { StorachaUploader } from '@/components/storacha/StorachaUploader';
+import { StorachaMigrator } from '@/components/StorachaMigrator';
 
 export default function Home() {
-  const [downloadedFile, setDownloadedFile] = useState<File | undefined>();
-
-  const handleFileDownload = (file: File) => {
-    setDownloadedFile(file);
-  };
-
   return (
     <div className="space-y-10">
       <div className="text-center">
@@ -16,14 +8,11 @@ export default function Home() {
           S3 to Storacha Migration Demo
         </h1>
         <p className="mt-2 text-gray-600">
-          Download files from S3 and upload them to Storacha with detailed progress tracking
+          Migrate files directly from S3 to Storacha with detailed progress tracking
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <S3Downloader onFileDownload={handleFileDownload} />
-        <StorachaUploader file={downloadedFile} />
-      </div>
+      <StorachaMigrator />
 
       <div className="text-center p-6 bg-gray-50 rounded-xl">
         <h2 className="text-xl font-semibold mb-2">How It Works</h2>
@@ -35,23 +24,23 @@ export default function Home() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="p-4 bg-white rounded-lg shadow-sm">
-            <h3 className="font-medium text-storacha">Step 1: Download</h3>
+            <h3 className="font-medium text-storacha">Step 1: Configure</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Enter your S3 credentials and file path to download a file with progress tracking.
+              Enter your S3 credentials and Storacha email to set up the migration.
             </p>
           </div>
           
           <div className="p-4 bg-white rounded-lg shadow-sm">
-            <h3 className="font-medium text-storacha">Step 2: Upload</h3>
+            <h3 className="font-medium text-storacha">Step 2: Migrate</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Enter your Storacha email and select a space to upload the downloaded file.
+              Start the migration and watch real-time progress as your file moves to Storacha.
             </p>
           </div>
           
           <div className="p-4 bg-white rounded-lg shadow-sm">
             <h3 className="font-medium text-storacha">Step 3: Access</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Once uploaded, receive the IPFS CID and URL to access your file on the decentralized web.
+              Once migrated, receive the IPFS CID and URL to access your file on the decentralized web.
             </p>
           </div>
         </div>
