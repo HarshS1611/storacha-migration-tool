@@ -1,5 +1,5 @@
 export interface StorachaMigratorConfig {
-  s3: {
+  s3?: {
     bucketName: string;
     region: string;
     credentials?: {
@@ -152,7 +152,7 @@ export interface StorachaConfig {
 }
 
 export interface ConnectionConfig {
-  s3: S3ServiceConfig;
+  s3?: S3ServiceConfig;
   mongodb?: MongoDBServiceConfig;
   storacha: StorachaConfig;
 }
