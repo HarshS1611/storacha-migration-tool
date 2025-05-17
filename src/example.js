@@ -12,6 +12,10 @@ async function main() {
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
       }
     },
+    mongodb: {
+      uri: process.env.MONGODB_URI || 'mongodb://localhost:27017',
+      dbName: process.env.MONGODB_DB_NAME || 'test'
+    },
     storacha: {
       email: process.env.STORACHA_EMAIL || ''
     },
@@ -27,8 +31,11 @@ async function main() {
   });
 
   try {
+    console.log("Initializing migrator...");
     await migrator.initialize();
     console.log('Migrator initialized');
+
+    // await migrator.createSpace();
 
     // migrator.onProgress((progress) => {
     //   console.log(`Migration progress: ${progress.percentage}%`);
@@ -41,6 +48,12 @@ async function main() {
     // await migrator.migrateFile('HarshSinghResume.pdf');
 
     // await migrator.migrateDirectory('images1');
+
+    // Migrate all MongoDB collections
+    await migrator.migrateMongoDb();
+    
+    // Or migrate a specific collection
+    // await migrator.migrateMongoDb('users');
 
     const res = await migrator.listSpaces();
     console.log('Spaces:', res);
