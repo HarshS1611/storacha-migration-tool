@@ -4,3 +4,5 @@ dist
 .
 .qodo
 documents/
+tsconfig.tsbuildinfo
+temp
