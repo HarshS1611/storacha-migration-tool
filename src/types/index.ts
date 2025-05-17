@@ -181,6 +181,7 @@ export interface StorachaMigratorInterface {
   close(): Promise<void>;
   migrateFile(fileKey: string): Promise<UploadResponse>;
   migrateDirectory(directoryPath: string): Promise<UploadResponse>;
+  migrateMongoDb(collectionName?: string): Promise<UploadResponse>;
   createSpace(): Promise<SpaceResponse>;
   setSpace(did: string): Promise<SpaceResponse>;
   onProgress(callback: (progress: MigrationProgress) => void): void;
