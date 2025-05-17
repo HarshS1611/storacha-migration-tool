@@ -7,6 +7,17 @@ export interface StorachaMigratorConfig {
       secretAccessKey: string;
     };
   };
+  mongodb?: {
+    uri: string;
+    dbName: string;
+    options?: {
+      useNewUrlParser?: boolean;
+      useUnifiedTopology?: boolean;
+      authSource?: string;
+      user?: string;
+      password?: string;
+    };
+  };
   storacha: {
     email?: string;
   };
@@ -35,6 +46,18 @@ export interface S3ServiceConfig {
   };
 }
 
+export interface MongoDBServiceConfig {
+  uri: string;
+  dbName: string;
+  options?: {
+    useNewUrlParser?: boolean;
+    useUnifiedTopology?: boolean;
+    authSource?: string;
+    user?: string;
+    password?: string;
+  };
+}
+
 export interface UploadResponse {
   success: boolean;
   cid?: string;
@@ -59,8 +82,14 @@ export interface Logger {
 }
 
 export interface MigrationProgress {
-  status: 'preparing' | 'completed' | 'idle' | 'downloading' | 'uploading' | 'error';
-  phase: 'preparing' | 'download' | 'upload' | 'completed' | 'failed';
+  status:
+    | "preparing"
+    | "completed"
+    | "idle"
+    | "downloading"
+    | "uploading"
+    | "error";
+  phase: "preparing" | "download" | "upload" | "completed" | "failed";
   percentage: number;
   totalFiles: number;
   completedFiles: number;
@@ -93,7 +122,7 @@ export interface MigrationProgress {
 export interface ProgressStatus {
   loaded: number;
   total: number;
-  phase: 'download' | 'upload' | 'preparing';
+  phase: "download" | "upload" | "preparing";
   shardIndex?: number;
   totalShards?: number;
   currentFile?: string;
@@ -124,6 +153,7 @@ export interface StorachaConfig {
 
 export interface ConnectionConfig {
   s3: S3ServiceConfig;
+  mongodb?: MongoDBServiceConfig;
   storacha: StorachaConfig;
 }
 
@@ -185,14 +215,17 @@ export interface TransferProgress {
 export interface LogEntry {
   timestamp: string;
   message: string;
-  data?: Partial<MigrationProgress> | {
-    shardIndex: number;
-    totalShards: number;
-    percentage: number;
-    size: string;
-  } | {
-    fileKey?: string;
-    result?: any;
-    error?: Error;
-  };
+  data?:
+    | Partial<MigrationProgress>
+    | {
+        shardIndex: number;
+        totalShards: number;
+        percentage: number;
+        size: string;
+      }
+    | {
+        fileKey?: string;
+        result?: any;
+        error?: Error;
+      };
 }
