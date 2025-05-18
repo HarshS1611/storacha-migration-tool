@@ -7,7 +7,7 @@ import {
   MigrationProgress,
   StorachaMigratorInterface,
   MigrationOptions,
-  MigrationResult
+  MigrationResult,
 } from "./types/index.js";
 import { ConnectionManager } from "./managers/ConnectionManager.js";
 import { EventManager } from "./managers/EventManager.js";
@@ -23,7 +23,7 @@ export class StorachaMigrator implements StorachaMigratorInterface {
   private readonly connectionManager: ConnectionManager;
   private readonly eventManager: EventManager;
   private readonly retryManager: RetryManager;
-  private readonly s3Service: S3Service;
+  private readonly s3Service?: S3Service;
   private migrationOptions?: MigrationOptions;
 
   constructor(
@@ -37,7 +37,9 @@ export class StorachaMigrator implements StorachaMigratorInterface {
     this.connectionManager = new ConnectionManager(config);
     this.eventManager = new EventManager();
     this.retryManager = new RetryManager(config.retry, this.logger);
-    this.s3Service = new S3Service(config.s3, this.eventManager);
+    if (config.s3) {
+      this.s3Service = new S3Service(config.s3, this.eventManager);
+    }
 
     // Set up callbacks if provided in options
     if (options?.progressCallback) {
@@ -60,29 +62,32 @@ export class StorachaMigrator implements StorachaMigratorInterface {
   async migrateFile(fileKey: string): Promise<UploadResponse> {
     return await this.retryManager.withRetry(async () => {
       this.logger.info(`🔄 Migrating file: ${fileKey}`);
-      
+
       const startTime = new Date();
       this.eventManager.updateProgress({
-        phase: 'preparing',
-        status: 'preparing',
+        phase: "preparing",
+        status: "preparing",
         startTime,
         currentFile: fileKey,
         totalFiles: 1,
-        completedFiles: 0
+        completedFiles: 0,
       });
 
       const s3 = this.connectionManager.getS3Connection();
       const storacha = this.connectionManager.getStorachaConnection();
+      if (!this.s3Service) {
+        throw new Error("S3 service not initialized");
+      }
 
-      this.eventManager.updateProgress({ 
-        phase: 'download',
-        status: 'downloading'
+      this.eventManager.updateProgress({
+        phase: "download",
+        status: "downloading",
       });
       const fileData = await this.s3Service.fetchFileFromS3(fileKey);
 
-      this.eventManager.updateProgress({ 
-        phase: 'upload',
-        status: 'uploading'
+      this.eventManager.updateProgress({
+        phase: "upload",
+        status: "uploading",
       });
       const result = await storacha.uploadToStoracha(
         fileData.buffer,
@@ -91,10 +96,10 @@ export class StorachaMigrator implements StorachaMigratorInterface {
 
       const endTime = new Date();
       this.eventManager.updateProgress({
-        status: result.success ? 'completed' : 'error',
+        status: result.success ? "completed" : "error",
         endTime,
         completedFiles: 1,
-        percentage: 100
+        percentage: 100,
       });
 
       this.eventManager.emit("fileComplete", fileKey, result);
@@ -109,8 +114,13 @@ export class StorachaMigrator implements StorachaMigratorInterface {
 
       const s3 = this.connectionManager.getS3Connection();
       const storacha = this.connectionManager.getStorachaConnection();
+      if (!this.s3Service) {
+        throw new Error("S3 service not initialized");
+      }
 
-      const fileKeys = await this.s3Service.listFilesInS3Directory(directoryPath);
+      const fileKeys = await this.s3Service.listFilesInS3Directory(
+        directoryPath
+      );
       if (fileKeys.length === 0) {
         throw new Error("⚠️ No files found in directory");
       }
@@ -120,34 +130,37 @@ export class StorachaMigrator implements StorachaMigratorInterface {
         totalFiles: fileKeys.length,
         completedFiles: 0,
         percentage: 0,
-        phase: 'preparing',
-        status: 'preparing',
+        phase: "preparing",
+        status: "preparing",
         startTime,
         currentFile: directoryPath,
         remainingFiles: fileKeys.length,
-        totalBatches: Math.ceil(fileKeys.length / (this.migrationOptions?.batchSize || this.config.batch.size))
+        totalBatches: Math.ceil(
+          fileKeys.length /
+            (this.migrationOptions?.batchSize || this.config.batch.size)
+        ),
       });
 
       // Wait a moment for the UI to update
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Download phase
-      this.eventManager.updateProgress({ 
-        phase: 'download',
-        status: 'downloading'
+      this.eventManager.updateProgress({
+        phase: "download",
+        status: "downloading",
       });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const filesData = await this.s3Service.fetchFilesInBatches(fileKeys);
-      
+
       // Wait for download progress to be displayed
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Upload phase
-      this.eventManager.updateProgress({ 
-        phase: 'upload',
-        status: 'uploading'
+      this.eventManager.updateProgress({
+        phase: "upload",
+        status: "uploading",
       });
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const result = await storacha.uploadDirectoryToStoracha(filesData);
 
       // Final update
@@ -155,14 +168,128 @@ export class StorachaMigrator implements StorachaMigratorInterface {
       this.eventManager.updateProgress({
         completedFiles: fileKeys.length,
         percentage: 100,
-        phase: 'preparing',
-        status: result.success ? 'completed' : 'error',
+        phase: "preparing",
+        status: result.success ? "completed" : "error",
         endTime,
-        remainingFiles: 0
+        remainingFiles: 0,
       });
 
       return result;
     }, `migrate directory ${directoryPath}`);
+  }
+
+  /**
+   * Migrates a MongoDB collection to Storacha
+   * @param {string} collectionName - The name of the collection to migrate (optional)
+   * @returns {Promise<UploadResponse>}
+   */
+  async migrateMongoDb(collectionName?: string): Promise<UploadResponse> {
+    return await this.retryManager.withRetry(async () => {
+      this.logger.info(
+        collectionName
+          ? `🔄 Migrating MongoDB collection: ${collectionName}`
+          : "🔄 Migrating all MongoDB collections"
+      );
+      const startTime = new Date();
+
+      // Get connections
+      const mongodb = this.connectionManager.getMongoConnection();
+      const storacha = this.connectionManager.getStorachaConnection();
+
+      // Initialize progress with preparing phase
+      this.eventManager.updateProgress({
+        phase: "preparing",
+        status: "preparing",
+        startTime,
+        currentFile: collectionName || "MongoDB collections",
+        totalFiles: 0, // Will be updated once we know how many collections
+        completedFiles: 0,
+      });
+
+      // Get collections to migrate
+      let collectionsToExport: string[] = [];
+      if (collectionName) {
+        collectionsToExport = [collectionName];
+      } else {
+        // List all collections and export them
+        collectionsToExport = await mongodb.listCollections();
+      }
+
+      if (collectionsToExport.length === 0) {
+        throw new Error("⚠️ No collections found to export");
+      }
+
+      // Update progress with total collections
+      this.eventManager.updateProgress({
+        totalFiles: collectionsToExport.length,
+        remainingFiles: collectionsToExport.length,
+      });
+
+      // Wait a moment for the UI to update
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Process each collection
+      const exportedFiles: FileData[] = [];
+      let completedCollections = 0;
+
+      for (const collection of collectionsToExport) {
+        try {
+          // Download phase - export collection to JSON
+          this.eventManager.updateProgress({
+            phase: "download",
+            status: "downloading",
+            currentFile: collection,
+          });
+
+          const fileData = await mongodb.fetchCollection(collection);
+          exportedFiles.push(fileData);
+          completedCollections++;
+
+          this.eventManager.updateProgress({
+            completedFiles: completedCollections,
+            percentage:
+              (completedCollections / collectionsToExport.length) * 100,
+            remainingFiles: collectionsToExport.length - completedCollections,
+          });
+        } catch (error) {
+          this.logger.error(
+            `Error exporting collection ${collection}`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+          this.eventManager.emit(
+            "error",
+            error instanceof Error ? error : new Error(String(error)),
+            collection
+          );
+        }
+      }
+
+      if (exportedFiles.length === 0) {
+        throw new Error("⚠️ No collections were successfully exported");
+      }
+
+      // Upload phase - upload exported JSON files to Storacha
+      this.eventManager.updateProgress({
+        phase: "upload",
+        status: "uploading",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const result = await storacha.uploadDirectoryToStoracha(exportedFiles);
+
+      // Final update
+      const endTime = new Date();
+      this.eventManager.updateProgress({
+        completedFiles: exportedFiles.length,
+        percentage: 100,
+        phase: "completed",
+        status: result.success ? "completed" : "error",
+        endTime,
+        remainingFiles: 0,
+      });
+
+      return result;
+    }, `migrate MongoDB ${collectionName || "collections"}`);
   }
 
   onProgress(callback: (progress: MigrationProgress) => void): void {
@@ -235,9 +362,19 @@ export class StorachaMigrator implements StorachaMigratorInterface {
    * @returns {string}
    */
 
-  private validateConfig(config: StorachaMigratorConfig): StorachaMigratorConfig {
-    if (!config.s3?.region) throw new Error('S3 region is required');
-    if (!config.retry?.maxAttempts) throw new Error('Retry configuration is required');
+  private validateConfig(
+    config: StorachaMigratorConfig
+  ): StorachaMigratorConfig {
+    if (config.s3) {
+      if (!config.s3?.region) throw new Error("S3 region is required");
+    }
+    if (config.mongodb) {
+      if (!config.mongodb.uri) throw new Error("MongoDB URI is required");
+      if (!config.mongodb.dbName)
+        throw new Error("MongoDB database name is required");
+    }
+    if (!config.retry?.maxAttempts)
+      throw new Error("Retry configuration is required");
     if (!config.batch?.size) config.batch = { size: 5, concurrency: 3 };
     if (!config.batch?.concurrency) config.batch.concurrency = 3;
     return config;
