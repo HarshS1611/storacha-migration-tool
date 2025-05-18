@@ -6,3 +6,4 @@ dist
 documents/
 tsconfig.tsbuildinfo
 temp
+logs

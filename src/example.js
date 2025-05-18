@@ -53,12 +53,15 @@ async function main() {
     await migrator.migrateMongoDb();
     
     // Or migrate a specific collection
-    // await migrator.migrateMongoDb('users');
+    // await migrator.migrateMongoDb('cohort1');
 
-    const res = await migrator.listSpaces();
-    console.log('Spaces:', res);
-    const res2 = await migrator.listFilesInSpace();
-    console.log('Files in space:', res2);
+    // List all updloaded files
+
+    /* const res = await migrator.listSpaces();
+       console.log('Spaces:', res);
+       const res2 = await migrator.listFilesInSpace();
+       console.log('Files in space:', res2); */
+
   } catch (error) {
     console.error('Migration failed:', error);
   } finally {
