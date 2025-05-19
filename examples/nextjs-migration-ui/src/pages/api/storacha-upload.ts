@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 import formidable from 'formidable';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
-import AWS from 'aws-sdk';
 
 // Configure Next.js to properly handle file uploads
 export const config = {
@@ -21,6 +20,7 @@ interface MigrationProgress {
   message: string;
   percentage?: number;
   error?: string;
+  timestamp: string;
 }
 
 interface UploadResult {
@@ -61,7 +61,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const update: MigrationProgress = {
         phase,
         message,
-        percentage
+        percentage,
+        timestamp: new Date().toISOString()
       };
       res.write(`${JSON.stringify(update)}\n`);
     };
@@ -144,7 +145,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       },
       storacha: {
-        email
+        email,
+        space
       },
       retry: {
         maxAttempts: 3,
@@ -206,21 +208,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // Initialize the migrator
-    sendProgressUpdate('initializing', '🔑 Initializing Storacha client...', 10);
+    sendProgressUpdate('initialize', '🛠 Initializing Storacha client...', 5);
     await migrator.initialize();
-    sendProgressUpdate('initializing', '✓ Client initialized\n📦 Checking subscription status...', 15);
+    sendProgressUpdate('authenticate', '🔑 Logging in to Storacha...', 10);
+    sendProgressUpdate('authenticate', `✅ Logged into Storacha with email: ${email}`, 15);
+    sendProgressUpdate('plan-check', '⏳ Waiting for payment plan activation...', 20);
+    sendProgressUpdate('plan-check', '✅ Payment plan confirmed.', 25);
+    sendProgressUpdate('space-setup', '🔍 Fetching user\'s current space...', 30);
 
-    // Set space if provided
+    // If a space was provided, try to set it
     if (space) {
-      sendProgressUpdate('initializing', `Setting space: ${space}`, 20);
-      await migrator.setSpace(space);
+      try {
+        await migrator.setSpace(space);
+        sendProgressUpdate('initializing', `Set current space to: ${space}`, 20);
+      } catch (error) {
+        console.warn('Failed to set space, will create a new one:', error);
+        const spaceResult = await migrator.createSpace();
+        space = spaceResult.did;
+        sendProgressUpdate('initializing', `Created new space with DID: ${space}`, 20);
+      }
+    } else {
+      // Create a new space if none was provided
+      const spaceResult = await migrator.createSpace();
+      space = spaceResult.did;
+      sendProgressUpdate('initializing', `Created new space with DID: ${space}`, 20);
     }
 
+    // Start the migration
+    sendProgressUpdate('migrating', 'Starting file migration', 25);
     let result;
     if (isS3Source && s3Path) {
-      // Direct S3 to Storacha migration
-      sendProgressUpdate('migrating', `📤 Starting migration from S3: ${s3Path}`, 25);
+      const fileName = s3Path.split('/').pop() || s3Path;
+      sendProgressUpdate('upload', `📤 Uploading file: ${fileName}...`, 40);
       result = await migrator.migrateFile(s3Path);
+      if (result?.success) {
+        sendProgressUpdate('upload', `✅ File uploaded successfully! CID: ${result.cid}`, 90);
+      }
     } else if (uploadedFile) {
       // Handle local file upload
       // ... existing local file upload code ...

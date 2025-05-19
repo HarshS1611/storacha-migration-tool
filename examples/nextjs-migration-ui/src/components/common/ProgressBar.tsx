@@ -1,43 +1,42 @@
 import React from 'react';
 
-export interface ProgressBarProps {
-  percentage: number;
-  color?: 'storacha' | 'green' | 'red';
-  height?: 'sm' | 'md' | 'lg';
-  showLabel?: boolean;
+interface ProgressBarProps {
+  progress: number;
+  color?: 'storacha' | 'green' | 'yellow' | 'red';
+  showPercentage?: boolean;
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
-  percentage,
+  progress,
   color = 'storacha',
-  height = 'md',
-  showLabel = true
+  showPercentage = false,
 }) => {
-  const normalizedProgress = Math.min(100, Math.max(0, percentage));
-
-  const heightClass = {
-    sm: 'h-1',
-    md: 'h-2',
-    lg: 'h-4'
-  }[height];
-
-  const colorClass = {
-    storacha: 'bg-storacha',
-    green: 'bg-green-500',
-    red: 'bg-red-500'
-  }[color];
+  const normalizedProgress = Math.min(100, Math.max(0, progress));
+  
+  const getColorClass = () => {
+    switch (color) {
+      case 'green':
+        return 'bg-green-500';
+      case 'yellow':
+        return 'bg-yellow-500';
+      case 'red':
+        return 'bg-red-500';
+      default:
+        return 'bg-storacha';
+    }
+  };
 
   return (
-    <div className="w-full">
-      <div className={`w-full ${heightClass} bg-gray-200 rounded-full overflow-hidden`}>
-        <div
-          className={`${heightClass} ${colorClass} rounded-full transition-all duration-500 ease-out`}
-          style={{ width: `${normalizedProgress}%` }}
-        />
-      </div>
-      {showLabel && (
-        <div className="mt-1 text-right">
-          <span className="text-sm text-gray-600">{Math.round(normalizedProgress)}%</span>
+    <div className="relative w-full h-4 bg-gray-100 rounded-full overflow-hidden">
+      <div
+        className={`absolute left-0 top-0 h-full transition-all duration-300 ${getColorClass()}`}
+        style={{ width: `${normalizedProgress}%` }}
+      />
+      {showPercentage && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-medium text-gray-700">
+            {Math.round(normalizedProgress)}%
+          </span>
         </div>
       )}
     </div>

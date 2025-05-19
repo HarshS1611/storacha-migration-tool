@@ -1,1 +1,7 @@
-{"/_app":"pages/_app.js","/_error":"pages/_error.js","/api/migrate":"pages/api/migrate.js","/":"pages/index.html","/api/storacha-upload":"pages/api/storacha-upload.js","/_document":"pages/_document.js","/404":"pages/404.html"}
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/": "pages/index.js",
+  "/api/migrate": "pages/api/migrate.js"
+}

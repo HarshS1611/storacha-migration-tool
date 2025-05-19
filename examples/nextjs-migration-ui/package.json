@@ -3,14 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "npx next dev --no-warnings",
+    "build": "npx next build",
+    "start": "npx next start --no-warnings",
     "lint": "next lint"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.400.0",
-    "aws-sdk": "^2.1450.0",
     "chart.js": "^4.4.0",
     "date-fns": "^2.30.0",
     "formidable": "^3.5.1",

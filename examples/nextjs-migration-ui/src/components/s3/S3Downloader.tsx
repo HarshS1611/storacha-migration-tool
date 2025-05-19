@@ -319,16 +319,16 @@ export const S3Downloader: React.FC<S3DownloaderProps> = ({ onFileDownload }: S3
         <div className="mt-6 space-y-4">
           <h3 className="text-lg font-medium">Download Progress</h3>
           
-          <ProgressBar 
-            percentage={progress.percentage}
+          <ProgressBar
+            progress={progress.percentage}
             color={
-              progress.status === 'error' 
-                ? 'red' 
-                : progress.status === 'completed' 
-                  ? 'green' 
-                  : 'storacha'
+              progress.status === 'error'
+                ? 'red'
+                : progress.status === 'completed'
+                ? 'green'
+                : 'storacha'
             }
-            height="lg"
+            showPercentage
           />
           
           <div className="grid grid-cols-2 gap-4">

@@ -13,7 +13,7 @@ const nextConfig = {
       os: false,
       crypto: false,
       stream: false,
-      events: require.resolve('events/'),
+      events: false,
     };
     
     // Add aliases for resolving Node.js-dependent modules

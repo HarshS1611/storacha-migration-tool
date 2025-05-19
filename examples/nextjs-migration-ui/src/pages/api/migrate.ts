@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import AWS from 'aws-sdk';
+import { StorachaMigrator } from 'storacha-migration-tool';
 
 // This handler runs on the server side, where Node.js modules are available
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -9,52 +9,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { action, s3Config, fileKey } = req.body;
+    const { action, s3Config, pathKey, isDirectory, storachaConfig } = req.body;
 
-    if (action !== 'downloadFromS3') {
-      return res.status(400).json({ error: 'Invalid action' });
-    }
-
-    if (!s3Config || !fileKey) {
+    if (!s3Config || !pathKey || !storachaConfig) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    // Initialize S3 client
-    const s3 = new AWS.S3({
-      region: s3Config.region,
-      credentials: {
-        accessKeyId: s3Config.credentials.accessKeyId,
-        secretAccessKey: s3Config.credentials.secretAccessKey
+    // Create StorachaMigrator instance
+    const migrator = new StorachaMigrator({
+      s3: {
+        region: s3Config.region,
+        bucketName: s3Config.bucketName,
+        credentials: {
+          accessKeyId: s3Config.credentials.accessKeyId,
+          secretAccessKey: s3Config.credentials.secretAccessKey
+        }
+      },
+      storacha: {
+        email: storachaConfig.email
+      },
+      retry: {
+        maxAttempts: 3,
+        backoffMs: 1000,
+        maxBackoffMs: 10000
+      },
+      batch: {
+        concurrency: 3,
+        size: 5
       }
     });
 
-    // Get object metadata
-    const headParams = {
-      Bucket: s3Config.bucketName,
-      Key: fileKey
-    };
+    // Initialize the migrator
+    await migrator.initialize();
 
-    try {
-      const metadata = await s3.headObject(headParams).promise();
-      
+    // Perform migration based on the action
+    let result;
+    if (action === 'migrateFileToStoracha') {
+      result = await migrator.migrateFile(pathKey);
+    } else if (action === 'migrateDirectoryToStoracha') {
+      result = await migrator.migrateDirectory(pathKey);
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    // Handle the migration result
+    if (result.success) {
       return res.status(200).json({
         success: true,
-        size: metadata.ContentLength,
-        contentType: metadata.ContentType,
-        lastModified: metadata.LastModified
+        cid: result.cid,
+        url: result.url,
+        size: result.size
       });
-    } catch (error) {
-      console.error('Error getting S3 object metadata:', error);
-      return res.status(404).json({
-        error: 'File not found in S3',
-        message: error instanceof Error ? error.message : 'Unknown error'
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: result.error || 'Migration failed'
       });
     }
   } catch (error) {
     console.error('Error in migrate API:', error);
     return res.status(500).json({
-      error: 'Server error',
+      success: false,
       message: error instanceof Error ? error.message : 'Unknown error'
     });
+  } finally {
+    // Clean up any resources if needed
   }
 } 
