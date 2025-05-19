@@ -34,13 +34,15 @@ interface FormErrors {
 }
 
 interface MigrationProgress {
-  phase?: 'initializing' | 'preparing' | 'migrating' | 'completed' | 'error';
+  phase?: 'initializing' | 'preparing' | 'downloading' | 'uploading' | 'migrating' | 'completed' | 'error';
   status: 'idle' | 'migrating' | 'completed' | 'error';
   percentage: number;
   loaded: number;
   total: number;
   speed: number;
   timeRemaining: number;
+  downloadPercentage?: number;
+  uploadPercentage?: number;
   fileName?: string;
   message?: string;
   error?: string;
@@ -217,21 +219,73 @@ export const StorachaMigrator: React.FC = () => {
           }
         }, undefined, loggerRef.current);
 
+        // Add hooks for detailed progress events
+        migrator.onProgress((progress) => {
+          if (progress.phase) {
+            loggerRef.current?.info(`Phase: ${progress.phase}`);
+          }
+          
+          if (progress.downloadedBytes && progress.totalDownloadBytes) {
+            const downloadPercentage = (progress.downloadedBytes / progress.totalDownloadBytes) * 100;
+            loggerRef.current?.info(`⬇️ Downloading: ${downloadPercentage.toFixed(1)}% | ${formatBytes(progress.downloadedBytes)}/${formatBytes(progress.totalDownloadBytes)}`);
+          }
+          
+          if (progress.uploadedBytes && progress.totalUploadBytes) {
+            const uploadPercentage = (progress.uploadedBytes / progress.totalUploadBytes) * 100;
+            loggerRef.current?.info(`⬆️ Uploading: ${uploadPercentage.toFixed(1)}% | ${formatBytes(progress.uploadedBytes)}/${formatBytes(progress.totalUploadBytes)}`);
+          }
+          
+          // Update overall progress
+          setProgress(prev => ({
+            ...prev,
+            status: 'migrating',
+            phase: 'migrating',
+            percentage: progress.uploadedBytes && progress.totalUploadBytes 
+              ? Math.round((progress.uploadedBytes / progress.totalUploadBytes) * 100)
+              : prev.percentage,
+            loaded: progress.uploadedBytes || 0,
+            total: progress.totalUploadBytes || 0,
+            speed: typeof progress.uploadSpeed === 'string' 
+              ? parseInt(progress.uploadSpeed) 
+              : typeof progress.uploadSpeed === 'number'
+              ? progress.uploadSpeed
+              : 0,
+            timeRemaining: typeof progress.estimatedTimeRemaining === 'string'
+              ? parseInt(progress.estimatedTimeRemaining)
+              : typeof progress.estimatedTimeRemaining === 'number'
+              ? progress.estimatedTimeRemaining
+              : 0
+          }));
+        });
+
         // Initialize the migrator
+        loggerRef.current.info("🛠 Initializing Storacha client...");
         await migrator.initialize();
+        loggerRef.current.info("✅ Initialization complete");
 
         // Start migration based on whether it's a file or directory
         let result;
         if (config.migrationOptions.isDirectory) {
-          loggerRef.current.info(`Migrating directory: ${config.s3.objectKey}`);
+          const dirName = config.s3.objectKey.split('/').filter(Boolean).pop() || config.s3.objectKey;
+          loggerRef.current.info(`📁 Migrating directory: ${dirName}`);
           result = await migrator.migrateDirectory(config.s3.objectKey);
         } else {
-          loggerRef.current.info(`Migrating file: ${config.s3.objectKey}`);
+          const fileName = config.s3.objectKey.split('/').pop() || config.s3.objectKey;
+          loggerRef.current.info(`📄 Migrating file: ${fileName}`);
           result = await migrator.migrateFile(config.s3.objectKey);
         }
 
         if (!result.success) {
           throw new Error(result.error || 'Migration failed');
+        }
+
+        loggerRef.current.info(`✅ Migration completed successfully!`);
+        loggerRef.current.info(`🔗 CID: ${result.cid}`);
+        if (result.url) {
+          loggerRef.current.info(`🌐 URL: ${result.url}`);
+        }
+        if (result.size) {
+          loggerRef.current.info(`📦 Size: ${formatBytes(result.size)}`);
         }
 
         setProgress(prev => ({
@@ -244,55 +298,200 @@ export const StorachaMigrator: React.FC = () => {
           url: result.url
         }));
       } else {
-        // Server approach using a server-side API
+        // Server approach using a server-side API with streaming
         loggerRef.current.info("Using the Storacha migration tool via server API");
         
-        // Call the server-side API to handle the migration
-        const response = await fetch('/api/migrate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: config.migrationOptions.isDirectory ? 'migrateDirectoryToStoracha' : 'migrateFileToStoracha',
-            s3Config: {
-              region: config.s3.region,
-              bucketName: config.s3.bucketName,
-              credentials: {
-                accessKeyId: config.s3.accessKeyId,
-                secretAccessKey: config.s3.secretAccessKey
-              }
-            },
-            pathKey: config.s3.objectKey,
-            isDirectory: config.migrationOptions.isDirectory,
-            storachaConfig: {
-              email: config.storacha.email
-            }
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Server-side migration failed');
-        }
-
-        const result = await response.json();
-        
-        if (!result.success) {
-          throw new Error(result.message || 'Server-side migration failed');
-        }
-
+        // Set initial progress state
         setProgress(prev => ({
           ...prev,
-          status: 'completed',
-          phase: 'completed',
-          message: `Migration completed successfully!\nCID: ${result.cid}\nURL: ${result.url}`,
-          percentage: 100,
-          cid: result.cid,
-          url: result.url
+          status: 'migrating',
+          phase: 'initializing',
+          percentage: 5,
+          message: 'Starting migration...'
         }));
+        
+        try {
+          // Create request options
+          const requestOptions = {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: config.migrationOptions.isDirectory ? 'migrateDirectoryToStoracha' : 'migrateFileToStoracha',
+              s3Config: {
+                region: config.s3.region,
+                bucketName: config.s3.bucketName,
+                credentials: {
+                  accessKeyId: config.s3.accessKeyId,
+                  secretAccessKey: config.s3.secretAccessKey
+                }
+              },
+              pathKey: config.s3.objectKey,
+              isDirectory: config.migrationOptions.isDirectory,
+              storachaConfig: {
+                email: config.storacha.email
+              }
+            })
+          };
+          
+          // Start fetch for SSE
+          const response = await fetch('/api/migrate', requestOptions);
+          
+          if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+          
+          // Process the stream
+          const reader = response.body?.getReader();
+          if (!reader) {
+            throw new Error('Response body is not readable');
+          }
+          
+          let resultCid = '';
+          let resultUrl = '';
+          let resultSize = 0;
+          
+          // Read the stream
+          const processStream = async () => {
+            let buffer = '';
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) {
+                break;
+              }
+              
+              // Convert the chunk to text and add to buffer
+              const chunk = new TextDecoder().decode(value);
+              buffer += chunk;
+              
+              // Process complete events (each event is separated by \n\n)
+              const events = buffer.split('\n\n');
+              buffer = events.pop() || ''; // Keep the last incomplete event in the buffer
+              
+              for (const event of events) {
+                if (!event.trim() || !event.startsWith('data: ')) continue;
+                
+                try {
+                  // Parse the event data
+                  const eventData = JSON.parse(event.substring(6)); // Remove 'data: ' prefix
+                  
+                  if (eventData.type === 'log') {
+                    // Add log to the UI
+                    const log = eventData.data;
+                    if (loggerRef.current) {
+                      // Create a log entry through our custom logger
+                      switch (log.level) {
+                        case 'info':
+                          loggerRef.current.info(log.message);
+                          break;
+                        case 'warn':
+                          loggerRef.current.warn(log.message);
+                          break;
+                        case 'error':
+                          loggerRef.current.error(log.message);
+                          break;
+                        case 'debug':
+                          loggerRef.current.debug(log.message);
+                          break;
+                      }
+                    }
+                  } else if (eventData.type === 'progress') {
+                    // Update progress
+                    const progress = eventData.data;
+                    
+                    // Calculate download and upload percentages
+                    let downloadPercentage = 0;
+                    let uploadPercentage = 0;
+                    
+                    if (progress.downloadedBytes && progress.totalDownloadBytes) {
+                      downloadPercentage = Math.round((progress.downloadedBytes / progress.totalDownloadBytes) * 100);
+                    }
+                    
+                    if (progress.uploadedBytes && progress.totalUploadBytes) {
+                      uploadPercentage = Math.round((progress.uploadedBytes / progress.totalUploadBytes) * 100);
+                    }
+                    
+                    // Determine the current phase
+                    let currentPhase = progress.phase || 'migrating';
+                    if (downloadPercentage < 100 && downloadPercentage > 0) {
+                      currentPhase = 'downloading';
+                    } else if (downloadPercentage >= 100 && uploadPercentage < 100) {
+                      currentPhase = 'uploading';
+                    }
+                    
+                    // Determine which percentage to show in the progress bar
+                    // During download phase, show download percentage. During upload, show upload percentage.
+                    const displayPercentage = (prevProgress: MigrationProgress) => {
+                      if (currentPhase === 'downloading') {
+                        return downloadPercentage;
+                      } else if (uploadPercentage > 0) {
+                        return uploadPercentage;
+                      } else {
+                        return prevProgress.percentage;
+                      }
+                    };
+                    
+                    setProgress(prev => {
+                      return {
+                        ...prev,
+                        status: 'migrating',
+                        phase: currentPhase,
+                        // Use the determined display percentage, but don't decrease
+                        percentage: Math.max(displayPercentage(prev), prev.percentage),
+                        downloadPercentage,
+                        uploadPercentage,
+                        loaded: progress.uploadedBytes || prev.loaded,
+                        total: progress.totalUploadBytes || prev.total,
+                        speed: typeof progress.uploadSpeed === 'string' 
+                          ? parseInt(progress.uploadSpeed) 
+                          : typeof progress.uploadSpeed === 'number'
+                          ? progress.uploadSpeed
+                          : prev.speed,
+                        timeRemaining: typeof progress.estimatedTimeRemaining === 'string'
+                          ? parseInt(progress.estimatedTimeRemaining)
+                          : typeof progress.estimatedTimeRemaining === 'number'
+                          ? progress.estimatedTimeRemaining
+                          : prev.timeRemaining,
+                        message: getPhaseMessage(currentPhase, downloadPercentage, uploadPercentage)
+                      };
+                    });
+                  } else if (eventData.type === 'complete') {
+                    // Save result data
+                    resultCid = eventData.data.cid;
+                    resultUrl = eventData.data.url;
+                    resultSize = eventData.data.size;
+                    
+                    // Update progress to completed
+                    setProgress(prev => ({
+                      ...prev,
+                      status: 'completed',
+                      phase: 'completed',
+                      message: `Migration completed successfully!\nCID: ${resultCid}\nURL: ${resultUrl}`,
+                      percentage: 100,
+                      cid: resultCid,
+                      url: resultUrl
+                    }));
+                  } else if (eventData.type === 'error') {
+                    throw new Error(eventData.data.message);
+                  }
+                } catch (error) {
+                  console.error('Error processing event:', error, event);
+                }
+              }
+            }
+          };
+          
+          await processStream();
+        } catch (error) {
+          console.error('Error with streaming:', error);
+          throw error;
+        }
       }
     } catch (error) {
+      loggerRef.current?.error(`❌ ${error instanceof Error ? error.message : 'Unknown error'}`);
       setProgress(prev => ({
         ...prev,
         status: 'error',
@@ -305,7 +504,32 @@ export const StorachaMigrator: React.FC = () => {
     }
   };
 
-  const getLogIcon = (level: string) => {
+  const getLogIcon = (level: string, message?: string) => {
+    // Check for emojis in the message first
+    if (message && /[\p{Emoji}]/u.test(message)) {
+      // The message already has an emoji, don't add another one
+      return '';
+    }
+    
+    // Special case emojis for specific message content
+    if (message) {
+      if (message.includes('Initializing')) return '🛠';
+      if (message.includes('Logging in')) return '🔑';
+      if (message.includes('Logged in')) return '✅';
+      if (message.includes('Waiting')) return '⏳';
+      if (message.includes('confirmed')) return '✅';
+      if (message.includes('Fetching')) return '🔍';
+      if (message.includes('space')) return '✅';
+      if (message.includes('Uploading')) return '📤';
+      if (message.includes('uploaded')) return '✅';
+      if (message.includes('CID')) return '🔗';
+      if (message.includes('URL')) return '🌐';
+      if (message.includes('Size')) return '📦';
+      if (message.includes('Error')) return '❌';
+      if (message.includes('failed')) return '❌';
+    }
+    
+    // Default based on log level
     switch (level) {
       case 'info':
         return '📝';
@@ -330,6 +554,40 @@ export const StorachaMigrator: React.FC = () => {
         return 'bg-blue-50 border-blue-200 text-blue-700';
       default:
         return 'bg-gray-50 border-gray-200 text-gray-700';
+    }
+  };
+
+  const getPhaseMessage = (phase: string, downloadPercentage: number, uploadPercentage: number): string => {
+    switch (phase) {
+      case 'initializing':
+        return 'Initializing migration...';
+      case 'downloading':
+        return `Downloading from S3: ${downloadPercentage}%`;
+      case 'uploading':
+        return `Uploading to Storacha: ${uploadPercentage}%`;
+      case 'migrating':
+        return 'Processing file...';
+      case 'completed':
+        return 'Migration completed successfully!';
+      case 'error':
+        return 'Migration failed';
+      default:
+        return 'Processing...';
+    }
+  };
+
+  const getProgressColor = () => {
+    switch (progress.phase) {
+      case 'completed':
+        return 'green';
+      case 'error':
+        return 'red';
+      case 'downloading':
+        return 'storacha';
+      case 'uploading':
+        return 'storacha';
+      default:
+        return 'storacha';
     }
   };
 
@@ -659,6 +917,8 @@ export const StorachaMigrator: React.FC = () => {
                   <span className="text-sm font-medium text-gray-700">
                     {progress.status === 'error' ? 'Failed' : 
                      progress.status === 'completed' ? 'Completed' : 
+                     progress.phase === 'downloading' ? 'Downloading from S3' :
+                     progress.phase === 'uploading' ? 'Uploading to Storacha' :
                      'Migrating...'}
                   </span>
                   <span className="text-sm font-medium text-gray-700">
@@ -667,11 +927,27 @@ export const StorachaMigrator: React.FC = () => {
                 </div>
                 <ProgressBar
                   progress={progress.percentage}
-                  color={progress.status === 'error' ? 'red' : 
-                         progress.status === 'completed' ? 'green' : 
-                         'storacha'}
+                  color={getProgressColor()}
                   showPercentage={false}
                 />
+                
+                {/* Display additional progress information */}
+                {(progress.phase === 'downloading' || progress.phase === 'uploading') && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    {progress.phase === 'downloading' && progress.downloadPercentage !== undefined && (
+                      <div className="flex justify-between items-center mb-1">
+                        <span>Download:</span>
+                        <span>{progress.downloadPercentage}%</span>
+                      </div>
+                    )}
+                    {progress.phase === 'uploading' && progress.uploadPercentage !== undefined && (
+                      <div className="flex justify-between items-center">
+                        <span>Upload:</span>
+                        <span>{progress.uploadPercentage}%</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {progress.status === 'completed' && progress.cid && (
                   <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -708,7 +984,7 @@ export const StorachaMigrator: React.FC = () => {
 
               {/* Logs Timeline */}
               <div className="mt-6">
-                <h4 className="text-base font-medium text-gray-700 mb-3">Logs</h4>
+                <h4 className="text-base font-medium text-gray-700 mb-3">Migration Logs</h4>
                 <div className="space-y-3 max-h-96 overflow-y-auto p-4 rounded-lg border border-gray-200 bg-white scroll-smooth">
                   {logs.map((log) => (
                     <div
@@ -718,7 +994,7 @@ export const StorachaMigrator: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-lg" role="img" aria-label={log.level}>
-                            {getLogIcon(log.level)}
+                            {getLogIcon(log.level, log.message)}
                           </span>
                           <span className="font-medium capitalize">{log.level}</span>
                         </div>
@@ -727,7 +1003,12 @@ export const StorachaMigrator: React.FC = () => {
                         </span>
                       </div>
                       <div className="mt-2 font-mono text-sm whitespace-pre-wrap">
-                        {log.message}
+                        {/* Show message without emoji if the icon function provided an emoji */}
+                        {/^[\p{Emoji}]/u.test(log.message)
+                          ? log.message 
+                          : getLogIcon(log.level, log.message) 
+                            ? log.message.replace(/^[🛠✅⏳🔍📤🔗🌐📦❌⚠️📝🔍📋]/, '').trim() 
+                            : log.message}
                         {log.error && (
                           <div className="mt-1 text-red-600">
                             {log.error.message}
