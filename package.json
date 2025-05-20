@@ -16,7 +16,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc -w",
-    "test": "jest"
+    "test": "jest",
+    "example": "node src/example.js"
   },
   "keywords": [
     "web3",
@@ -42,6 +43,7 @@
     "@web3-storage/upload-client": "^17.1.4",
     "@web3-storage/w3up-client": "^17.1.2",
     "dotenv": "^16.4.7",
+    "formdata-node": "^6.0.3",
     "mongodb": "^6.16.0",
     "storacha-migration-tool": "file:"
   },

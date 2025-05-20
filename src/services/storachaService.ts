@@ -1,12 +1,22 @@
 import { create, Client } from "@web3-storage/w3up-client";
 import { UploadResponse, SpaceResponse, FileData } from "../types/index.js";
-import { uploadDirectory, uploadFile } from '@web3-storage/upload-client'
-import { store } from '@web3-storage/capabilities/store'
-import { upload } from '@web3-storage/capabilities/upload'
-import { fetchWithUploadProgress } from '@web3-storage/upload-client/fetch-with-upload-progress'
+import { uploadDirectory, uploadFile } from "@web3-storage/upload-client";
+import { store } from "@web3-storage/capabilities/store";
+import { upload } from "@web3-storage/capabilities/upload";
+import { fetchWithUploadProgress } from "@web3-storage/upload-client/fetch-with-upload-progress";
 import { EventManager } from "../managers/EventManager.js";
 import dotenv from "dotenv";
-import { InvocationConfig, ProgressStatus, UploadListItem } from "@web3-storage/upload-client/types";
+// Import File only if running in Node.js environment
+// In browsers, File is already available globally
+import { File as NodeFile } from "formdata-node";
+import {
+  InvocationConfig,
+  ProgressStatus,
+  UploadListItem,
+} from "@web3-storage/upload-client/types";
+
+// For cross-environment compatibility
+const FileClass = typeof File === "undefined" ? NodeFile : File;
 
 dotenv.config();
 
@@ -113,17 +123,17 @@ export class StorachaClient {
         proofs: client.proofs(),
       };
 
-      const file = new File([fileBuffer], fileName);
+      const file = new FileClass([fileBuffer], fileName);
       console.log(`📤 Uploading file: ${fileName}...`);
-      
+
       const cid = await uploadFile(conf, file, {
         onUploadProgress: (progress: ProgressStatus) => {
           this.eventManager?.updateUploadProgress({
             ...progress,
-            phase: 'upload'
+            phase: "upload",
           });
         },
-        fetchWithUploadProgress // Enable XHR-based progress tracking
+        fetchWithUploadProgress, // Enable XHR-based progress tracking
       });
 
       console.log(`✅ File uploaded successfully! CID: ${cid.toString()}`);
@@ -152,7 +162,7 @@ export class StorachaClient {
       return {
         success: false,
         error: "Upload already in progress",
-        status: "failed"
+        status: "failed",
       };
     }
 
@@ -175,9 +185,9 @@ export class StorachaClient {
 
       // Step 2: Prepare files and configuration
       const files = filesArray.map(
-        ({ buffer, fileName }) => new File([buffer], fileName)
+        ({ buffer, fileName }) => new FileClass([buffer], fileName)
       );
-      
+
       const conf: InvocationConfig = {
         issuer: client.agent.issuer,
         with: space.did as `did:${string}:${string}`,
@@ -185,22 +195,31 @@ export class StorachaClient {
       };
 
       // Calculate total upload size
-      const totalUploadBytes = filesArray.reduce((acc, file) => acc + file.buffer.length, 0);
+      const totalUploadBytes = filesArray.reduce(
+        (acc, file) => acc + file.buffer.length,
+        0
+      );
       let totalBytesUploaded = 0;
       let lastBytesUploaded = 0;
 
-      console.log(`📂 Uploading ${files.length} files as a directory (Total size: ${this.formatBytes(totalUploadBytes)})...`);
-      
+      console.log(
+        `📂 Uploading ${
+          files.length
+        } files as a directory (Total size: ${this.formatBytes(
+          totalUploadBytes
+        )})...`
+      );
+
       // Step 3: Initialize upload progress
       this.eventManager?.updateProgress({
-        phase: 'upload',
+        phase: "upload",
         uploadedBytes: 0,
         totalUploadBytes,
-        currentFile: 'Starting directory upload...',
+        currentFile: "Starting directory upload...",
         totalFiles: files.length,
         completedFiles: 0,
         percentage: 0,
-        uploadSpeed: 0
+        uploadSpeed: 0,
       });
 
       // Step 4: Start upload with progress tracking
@@ -212,11 +231,12 @@ export class StorachaClient {
       const directoryCid = await uploadDirectory(conf, files, {
         onUploadProgress: (progress: ProgressStatus) => {
           const now = Date.now();
-          if (now - lastProgressUpdate > 100) { // Throttle updates to every 100ms
+          if (now - lastProgressUpdate > 100) {
+            // Throttle updates to every 100ms
             // Calculate actual bytes uploaded
             const currentBytesUploaded = progress.loaded || 0;
             if (currentBytesUploaded > lastBytesUploaded) {
-              totalBytesUploaded += (currentBytesUploaded - lastBytesUploaded);
+              totalBytesUploaded += currentBytesUploaded - lastBytesUploaded;
               lastBytesUploaded = currentBytesUploaded;
             }
 
@@ -229,38 +249,59 @@ export class StorachaClient {
             }
 
             const percentage = (totalBytesUploaded / totalUploadBytes) * 100;
-            
-            console.log(`Debug: Upload progress - ${this.formatBytes(totalBytesUploaded)}/${this.formatBytes(totalUploadBytes)} (${percentage.toFixed(1)}%) at ${this.formatBytes(uploadSpeed)}/s`);
-            
+
+            console.log(
+              `Debug: Upload progress - ${this.formatBytes(
+                totalBytesUploaded
+              )}/${this.formatBytes(totalUploadBytes)} (${percentage.toFixed(
+                1
+              )}%) at ${this.formatBytes(uploadSpeed)}/s`
+            );
+
             this.eventManager?.updateProgress({
-              phase: 'upload',
+              phase: "upload",
               uploadedBytes: totalBytesUploaded,
               totalUploadBytes,
               percentage,
               uploadSpeed,
-              currentFile: `Uploading directory (${this.formatBytes(totalBytesUploaded)}/${this.formatBytes(totalUploadBytes)})`
+              currentFile: `Uploading directory (${this.formatBytes(
+                totalBytesUploaded
+              )}/${this.formatBytes(totalUploadBytes)})`,
             });
-            
+
             lastProgressUpdate = now;
           }
         },
         onShardStored: (meta: any) => {
-          if (meta && typeof meta.shardIndex === 'number' && typeof meta.totalShards === 'number') {
+          if (
+            meta &&
+            typeof meta.shardIndex === "number" &&
+            typeof meta.totalShards === "number"
+          ) {
             const shardSize = totalUploadBytes / meta.totalShards;
-            const uploadedBytes = Math.min((meta.shardIndex + 1) * shardSize, totalUploadBytes);
+            const uploadedBytes = Math.min(
+              (meta.shardIndex + 1) * shardSize,
+              totalUploadBytes
+            );
             const percentage = (uploadedBytes / totalUploadBytes) * 100;
-            
-            console.log(`Debug: Shard ${meta.shardIndex + 1}/${meta.totalShards} stored (${percentage.toFixed(1)}%)`);
-            
+
+            console.log(
+              `Debug: Shard ${meta.shardIndex + 1}/${
+                meta.totalShards
+              } stored (${percentage.toFixed(1)}%)`
+            );
+
             this.eventManager?.updateProgress({
-              phase: 'upload',
+              phase: "upload",
               uploadedBytes,
               totalUploadBytes,
               percentage,
               uploadSpeed,
               currentShardIndex: meta.shardIndex,
               totalShards: meta.totalShards,
-              currentFile: `Processing shard ${meta.shardIndex + 1}/${meta.totalShards}`
+              currentFile: `Processing shard ${meta.shardIndex + 1}/${
+                meta.totalShards
+              }`,
             });
 
             // Update total bytes uploaded if shard tracking shows more progress
@@ -270,22 +311,23 @@ export class StorachaClient {
             }
           }
         },
-        fetchWithUploadProgress
+        fetchWithUploadProgress,
       });
 
       // Step 5: Show completion
       const uploadDuration = (Date.now() - uploadStartTime) / 1000;
-      const averageUploadSpeed = uploadDuration > 0 ? totalUploadBytes / uploadDuration : 0;
-      
+      const averageUploadSpeed =
+        uploadDuration > 0 ? totalUploadBytes / uploadDuration : 0;
+
       this.eventManager?.updateProgress({
-        phase: 'upload',
-        status: 'completed',
+        phase: "upload",
+        status: "completed",
         uploadedBytes: totalUploadBytes,
         totalUploadBytes,
         percentage: 100,
         uploadSpeed: averageUploadSpeed,
-        currentFile: 'Upload complete!',
-        completedFiles: files.length
+        currentFile: "Upload complete!",
+        completedFiles: files.length,
       });
 
       console.log(`✅ Directory uploaded successfully! CID: ${directoryCid}`);
@@ -300,9 +342,9 @@ export class StorachaClient {
     } catch (error) {
       console.error("❌ Error uploading directory to Storacha:", error);
       this.eventManager?.updateProgress({
-        phase: 'upload',
-        currentFile: 'Upload failed!',
-        errors: [{ file: 'directory', error: error as Error }]
+        phase: "upload",
+        currentFile: "Upload failed!",
+        errors: [{ file: "directory", error: error as Error }],
       });
       return {
         success: false,
@@ -316,8 +358,8 @@ export class StorachaClient {
 
   // Helper function for formatting bytes
   private formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    if (bytes === 0) return "0 B";
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
   }
@@ -351,7 +393,9 @@ export class StorachaClient {
     }
   }
 
-  static async connect(config: { email: `${string}@${string}` }): Promise<StorachaClient> {
+  static async connect(config: {
+    email: `${string}@${string}`;
+  }): Promise<StorachaClient> {
     const client = new StorachaClient();
     await client.initialize();
     await client.login(config.email);
@@ -412,7 +456,6 @@ export class StorachaClient {
       console.log(`✅ Found ${uploads.size} uploads.`);
 
       return uploads.results;
-      
     } catch (error) {
       console.error("❌ Error fetching all uploads:", error);
       return [];
@@ -429,16 +472,18 @@ export class StorachaClient {
 
   async uploadFilesInBatches(files: FileData[]): Promise<void> {
     const batchSize = 5;
-    
+
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       this.eventManager?.updateProgress({
-        phase: 'upload',
-        currentFile: `Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(files.length / batchSize)}`
+        phase: "upload",
+        currentFile: `Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(
+          files.length / batchSize
+        )}`,
       });
-      
+
       await Promise.all(
-        batch.map(file => this.uploadToStoracha(file.buffer, file.fileName))
+        batch.map((file) => this.uploadToStoracha(file.buffer, file.fileName))
       );
     }
   }
