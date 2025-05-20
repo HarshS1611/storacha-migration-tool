@@ -1,16 +1,18 @@
 # MongoDB to Storacha Migration Example
 
-This example demonstrates how to use the Storacha Migration Tool to migrate files from AWS S3 to Storacha (Web3.Storage).
+This example demonstrates how to use the Storacha Migration Tool to migrate files from MongoDB to Storacha (Web3.Storage).
 
 ## Setup
 
 1. Clone the repo
+
 ```bash
 https://github.com/HarshS1611/storacha-migration-tool.git
 cd storacha-migration-tool
 ```
 
 2. First, build and link the main library:
+
 ```bash
 # In the root directory (storacha-migration-tool)
 npm install
@@ -19,6 +21,7 @@ npm link
 ```
 
 3. Set up the example project:
+
 ```bash
 # In examples/directory-migration
 npm install
@@ -26,11 +29,8 @@ npm link storacha-migration-tool
 ```
 
 4. Create a `.env` file in this directory with your credentials:
+
 ```env
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-S3_BUCKET_NAME=your_bucket_name
-S3_REGION=your_region
 STORACHA_EMAIL=your_email@example.com
 MONGODB_URI=your_mongo_uri
 MONGODB_DB_NAME=your_collection_name
@@ -43,9 +43,10 @@ npm run start
 ```
 
 This will:
+
 1. Initialize the migrator with your credentials
-2. Connect to both S3 and Storacha services
-3. Migrate files from the specified S3 directory
+2. Connect to both MongoDB and Storacha services
+3. Migrate files from the specified MongoDB collection
 4. Show real-time progress including:
    - Visual progress bar
    - Upload speed
@@ -70,12 +71,14 @@ Time: 2m 15s remaining
 If you encounter any issues:
 
 1. Make sure you've built the main library:
+
 ```bash
 cd ../..
 npm run build
 ```
 
 2. Try relinking:
+
 ```bash
 # In the root directory
 npm link
@@ -91,9 +94,10 @@ npm link storacha-migration-tool
 ## Modifying the Example
 
 The example code in `index.ts` shows how to:
+
 - Configure the migrator
 - Track progress
 - Handle errors
 - Migrate individual files or entire directories
 
-Feel free to modify the configuration or try different migration scenarios! 
+Feel free to modify the configuration or try different migration scenarios!

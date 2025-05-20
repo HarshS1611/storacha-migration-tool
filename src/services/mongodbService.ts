@@ -1,8 +1,6 @@
 import { MongoClient, Db } from "mongodb";
 import { MongoDBServiceConfig, FileData } from "../types/index.js";
 import { EventManager } from "../managers/EventManager.js";
-import * as fs from "fs";
-import * as path from "path";
 
 export class MongoDBService {
   private client: MongoClient;
@@ -62,9 +60,9 @@ export class MongoDBService {
   }
 
   /**
-   * Fetches all documents from a collection and writes them to a JSON file
+   * Fetches all documents from a collection and keeps them in memory
    * @param {string} collectionName - The name of the collection to fetch
-   * @returns {Promise<FileData>} - The file data with the JSON content
+   * @returns {Promise<FileData>} - The file data with the JSON content (in memory only)
    */
   async fetchCollection(collectionName: string): Promise<FileData> {
     if (!this.db) {
@@ -78,21 +76,9 @@ export class MongoDBService {
       const collection = this.db.collection(collectionName);
       const documents = await collection.find({}).toArray();
 
-      // Create a temporary file to store the JSON data
-      const tempDir = path.join(process.cwd(), "temp");
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-
-      const fileName = `${collectionName}.json`;
-      const filePath = path.join(tempDir, fileName);
-
-      // Convert documents to JSON string
+      // Convert documents to JSON string and create buffer (in-memory only)
       const jsonData = JSON.stringify(documents, null, 2);
       const buffer = Buffer.from(jsonData);
-
-      // Write to file
-      fs.writeFileSync(filePath, buffer);
 
       // Update progress
       if (this.eventManager) {
@@ -107,7 +93,7 @@ export class MongoDBService {
 
       return {
         buffer,
-        fileName,
+        fileName: `${collectionName}.json`,
       };
     } catch (error) {
       console.error(`Error fetching collection: ${collectionName}`, error);
