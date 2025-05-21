@@ -357,6 +357,261 @@ export class StorachaMigrator implements StorachaMigratorInterface {
   }
 
   /**
+   * Retrieves files from a space and saves them to a download folder
+   * @param {string} did - The DID of the space
+   * @param {string} downloadPath - Path to save the downloaded files (defaults to './downloads')
+   * @returns {Promise<{cid: string, path: string}[]>} - Array of downloaded file information
+   */
+  async retrieveFilesInSpace(
+    did: string,
+    downloadPath: string = "./downloads"
+  ) {
+    return await this.retryManager.withRetry(async () => {
+      const listFilesInSpace = await this.listFilesInSpace(did);
+      this.logger.info(`📜 Retrieving all files in space: ${did}`);
+
+      const fs = await import("fs");
+      const path = await import("path");
+      const https = await import("https");
+
+      // Create download directory if it doesn't exist
+      if (!fs.existsSync(downloadPath)) {
+        fs.mkdirSync(downloadPath, { recursive: true });
+        this.logger.info(`Created download directory: ${downloadPath}`);
+      }
+
+      const downloadResults: { cid: string; path: string }[] = [];
+
+      // Track progress
+      let completedFiles = 0;
+      const totalFiles = listFilesInSpace.length;
+
+      this.eventManager.updateProgress({
+        phase: "download",
+        status: "downloading",
+        totalFiles,
+        completedFiles: 0,
+        percentage: 0,
+      });
+
+      // Download each file
+      for (const file of listFilesInSpace) {
+        try {
+          const cid = file.root.toString();
+          this.eventManager.updateProgress({
+            currentFile: cid,
+          });
+
+          // First check if the CID is a directory by getting the content
+          const gatewayUrl = `https://${cid}.ipfs.w3s.link`;
+          this.logger.info(`Checking content type for CID: ${cid}`);
+
+          // Get the content as text to check if it's HTML directory listing
+          const content = await this.fetchContent(gatewayUrl);
+
+          // Check if content is HTML and contains directory listing
+          if (content.includes("<html") && content.includes(`/ipfs/${cid}/`)) {
+            this.logger.info(`CID ${cid} is a directory, extracting files...`);
+
+            // Parse HTML to extract file links
+            const fileLinks = this.extractFileLinksFromHtml(content);
+
+            if (fileLinks.length === 0) {
+              this.logger.info(`No files found in directory ${cid}`);
+              continue;
+            }
+
+            this.logger.info(
+              `Found ${fileLinks.length} files in directory ${cid}`
+            );
+
+            // Download each file in the directory
+            for (const fileLink of fileLinks) {
+              const filename = `${cid.slice(0, 8)}-${fileLink.filename}`;
+              const fileCid = fileLink.cid;
+
+              // Skip parent directory links
+              if (filename === "..") continue;
+
+              const filePath = path.join(downloadPath, filename);
+              const fileUrl = `https://${fileCid}.ipfs.w3s.link`;
+
+              this.logger.info(
+                `Downloading file: ${filename} (CID: ${fileCid})`
+              );
+              this.eventManager.updateProgress({
+                currentFile: filename,
+              });
+
+              // Download the file
+              await this.downloadFile(fileUrl, filePath);
+
+              this.logger.info(`✅ Downloaded ${filename} to ${filePath}`);
+
+              downloadResults.push({
+                cid: fileCid,
+                path: filePath,
+              });
+
+              // Update progress
+              completedFiles++;
+              this.eventManager.updateProgress({
+                completedFiles,
+                percentage: (completedFiles / totalFiles) * 100,
+              });
+            }
+          } else {
+            // It's a single file, download it directly
+            const filename = `file-${cid.slice(0, 8)}`;
+            const filePath = path.join(downloadPath, filename);
+
+            this.logger.info(`Downloading file with CID: ${cid}`);
+            this.eventManager.updateProgress({
+              currentFile: filename,
+            });
+
+            // Download the file
+            await this.downloadFile(gatewayUrl, filePath);
+
+            this.logger.info(`✅ Downloaded to ${filePath}`);
+
+            downloadResults.push({
+              cid,
+              path: filePath,
+            });
+
+            // Update progress
+            completedFiles++;
+            this.eventManager.updateProgress({
+              completedFiles,
+              percentage: (completedFiles / totalFiles) * 100,
+            });
+          }
+        } catch (error) {
+          this.logger.error(
+            `❌ Failed to download file with CID ${file.root.toString()}: ${error}`
+          );
+          this.eventManager.emit(
+            "error",
+            error instanceof Error ? error : new Error(String(error)),
+            file.root.toString()
+          );
+        }
+      }
+
+      this.eventManager.updateProgress({
+        status: "completed",
+        phase: "completed",
+      });
+
+      return downloadResults;
+    }, `retrieve all files from space ${did}`);
+  }
+
+  /**
+   * Downloads a file from a URL to a local path
+   * @param {string} url - The URL to download from
+   * @param {string} filePath - The local path to save the file to
+   * @returns {Promise<void>}
+   * @private
+   */
+  private async downloadFile(url: string, filePath: string): Promise<void> {
+    const fs = await import("fs");
+    const https = await import("https");
+
+    return new Promise<void>((resolve, reject) => {
+      https
+        .get(url, (response) => {
+          if (response.statusCode === 200) {
+            const fileStream = fs.createWriteStream(filePath);
+            response.pipe(fileStream);
+
+            fileStream.on("finish", () => {
+              fileStream.close();
+              resolve();
+            });
+
+            fileStream.on("error", (err) => {
+              fs.unlinkSync(filePath);
+              reject(err);
+            });
+          } else {
+            reject(
+              new Error(`Failed to download from URL: ${response.statusCode}`)
+            );
+          }
+        })
+        .on("error", (err) => {
+          reject(err);
+        });
+    });
+  }
+
+  /**
+   * Fetches content from a URL as text
+   * @param {string} url - The URL to fetch from
+   * @returns {Promise<string>} - The content as text
+   * @private
+   */
+  private async fetchContent(url: string): Promise<string> {
+    const https = await import("https");
+
+    return new Promise<string>((resolve, reject) => {
+      https
+        .get(url, (response) => {
+          if (response.statusCode === 200) {
+            let data = "";
+
+            response.on("data", (chunk) => {
+              data += chunk;
+            });
+
+            response.on("end", () => {
+              resolve(data);
+            });
+          } else {
+            reject(
+              new Error(`Failed to fetch content: ${response.statusCode}`)
+            );
+          }
+        })
+        .on("error", (err) => {
+          reject(err);
+        });
+    });
+  }
+
+  /**
+   * Extracts file links from an HTML directory listing
+   * @param {string} html - The HTML content to parse
+   * @returns {Array<{filename: string, cid: string}>} - Array of file links
+   * @private
+   */
+  private extractFileLinksFromHtml(
+    html: string
+  ): Array<{ filename: string; cid: string }> {
+    // Simple regex-based extraction of file links
+    const fileLinks: Array<{ filename: string; cid: string }> = [];
+
+    // Extract file links of pattern href="/ipfs/{CID}/{filename}"
+    const fileRegex =
+      /<a href="\/ipfs\/[^"]+\/([^"]+)"[^>]*>.*?<\/a>[\s\S]*?<a class="ipfs-hash"[^>]*href="\/ipfs\/([^?"]+)/g;
+    let match;
+
+    while ((match = fileRegex.exec(html)) !== null) {
+      const filename = match[1];
+      const cid = match[2];
+
+      // Skip parent directory link
+      if (filename !== "..") {
+        fileLinks.push({ filename, cid });
+      }
+    }
+
+    return fileLinks;
+  }
+
+  /**
    * Generates a unique name for a new space
    * @private
    * @returns {string}
