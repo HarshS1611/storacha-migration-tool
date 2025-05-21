@@ -192,32 +192,32 @@ export const StorachaMigrator: React.FC = () => {
       setIsLoading(true);
 
       if (migrationMode === 'browser') {
-        // Browser approach using the library directly
+        // Browser approach using the Storacha library directly
         loggerRef.current.info("Using the Storacha migration tool directly in the browser");
-        
-        // Create StorachaMigrator instance with our custom logger
-        const migrator = new LibStorachaMigrator({
-          s3: {
-            region: config.s3.region,
-            bucketName: config.s3.bucketName,
-            credentials: {
-              accessKeyId: config.s3.accessKeyId,
-              secretAccessKey: config.s3.secretAccessKey
-            }
-          },
-          storacha: {
-            email: config.storacha.email
-          },
-          retry: {
-            maxAttempts: 3,
-            backoffMs: 1000,
-            maxBackoffMs: 10000
-          },
-          batch: {
-            concurrency: 3,
-            size: 5
+
+      // Create StorachaMigrator instance with our custom logger
+      const migrator = new LibStorachaMigrator({
+        s3: {
+          region: config.s3.region,
+          bucketName: config.s3.bucketName,
+          credentials: {
+            accessKeyId: config.s3.accessKeyId,
+            secretAccessKey: config.s3.secretAccessKey
           }
-        }, undefined, loggerRef.current);
+        },
+        storacha: {
+          email: config.storacha.email
+        },
+        retry: {
+          maxAttempts: 3,
+          backoffMs: 1000,
+          maxBackoffMs: 10000
+        },
+        batch: {
+          concurrency: 3,
+          size: 5
+        }
+      }, undefined, loggerRef.current);
 
         // Add hooks for detailed progress events
         migrator.onProgress((progress) => {
@@ -235,14 +235,36 @@ export const StorachaMigrator: React.FC = () => {
             loggerRef.current?.info(`⬆️ Uploading: ${uploadPercentage.toFixed(1)}% | ${formatBytes(progress.uploadedBytes)}/${formatBytes(progress.totalUploadBytes)}`);
           }
           
+          // Determine the current phase
+          let currentPhase: MigrationProgress['phase'] = 'migrating';
+          if (progress.downloadedBytes && progress.totalDownloadBytes && progress.downloadedBytes < progress.totalDownloadBytes) {
+            currentPhase = 'downloading';
+          } else if (progress.uploadedBytes && progress.totalUploadBytes && progress.uploadedBytes < progress.totalUploadBytes) {
+            currentPhase = 'uploading';
+          }
+          
+          // Calculate percentages
+          const downloadPercentage = progress.downloadedBytes && progress.totalDownloadBytes
+            ? Math.round((progress.downloadedBytes / progress.totalDownloadBytes) * 100)
+            : 0;
+            
+          const uploadPercentage = progress.uploadedBytes && progress.totalUploadBytes
+            ? Math.round((progress.uploadedBytes / progress.totalUploadBytes) * 100)
+            : 0;
+            
+          // Determine display percentage
+          const displayPercentage = currentPhase === 'downloading'
+            ? downloadPercentage
+            : (uploadPercentage > 0 ? uploadPercentage : 0);
+          
           // Update overall progress
           setProgress(prev => ({
             ...prev,
             status: 'migrating',
-            phase: 'migrating',
-            percentage: progress.uploadedBytes && progress.totalUploadBytes 
-              ? Math.round((progress.uploadedBytes / progress.totalUploadBytes) * 100)
-              : prev.percentage,
+            phase: currentPhase,
+            percentage: Math.max(displayPercentage, prev.percentage),
+            downloadPercentage,
+            uploadPercentage,
             loaded: progress.uploadedBytes || 0,
             total: progress.totalUploadBytes || 0,
             speed: typeof progress.uploadSpeed === 'string' 
@@ -254,13 +276,14 @@ export const StorachaMigrator: React.FC = () => {
               ? parseInt(progress.estimatedTimeRemaining)
               : typeof progress.estimatedTimeRemaining === 'number'
               ? progress.estimatedTimeRemaining
-              : 0
+              : 0,
+            message: getPhaseMessage(currentPhase, downloadPercentage, uploadPercentage)
           }));
         });
 
-        // Initialize the migrator
+      // Initialize the migrator
         loggerRef.current.info("🛠 Initializing Storacha client...");
-        await migrator.initialize();
+      await migrator.initialize();
         loggerRef.current.info("✅ Initialization complete");
 
         // Start migration based on whether it's a file or directory
@@ -275,9 +298,9 @@ export const StorachaMigrator: React.FC = () => {
           result = await migrator.migrateFile(config.s3.objectKey);
         }
 
-        if (!result.success) {
-          throw new Error(result.error || 'Migration failed');
-        }
+      if (!result.success) {
+        throw new Error(result.error || 'Migration failed');
+      }
 
         loggerRef.current.info(`✅ Migration completed successfully!`);
         loggerRef.current.info(`🔗 CID: ${result.cid}`);
@@ -288,15 +311,15 @@ export const StorachaMigrator: React.FC = () => {
           loggerRef.current.info(`📦 Size: ${formatBytes(result.size)}`);
         }
 
-        setProgress(prev => ({
-          ...prev,
-          status: 'completed',
-          phase: 'completed',
-          message: `Migration completed successfully!\nCID: ${result.cid}\nURL: ${result.url}`,
-          percentage: 100,
-          cid: result.cid,
-          url: result.url
-        }));
+      setProgress(prev => ({
+        ...prev,
+        status: 'completed',
+        phase: 'completed',
+        message: `Migration completed successfully!\nCID: ${result.cid}\nURL: ${result.url}`,
+        percentage: 100,
+        cid: result.cid,
+        url: result.url
+      }));
       } else {
         // Server approach using a server-side API with streaming
         loggerRef.current.info("Using the Storacha migration tool via server API");
@@ -402,6 +425,9 @@ export const StorachaMigrator: React.FC = () => {
                     // Update progress
                     const progress = eventData.data;
                     
+                    // Determine phase based on progress data
+                    let currentPhase: MigrationProgress['phase'] = progress.phase || 'migrating';
+                    
                     // Calculate download and upload percentages
                     let downloadPercentage = 0;
                     let uploadPercentage = 0;
@@ -414,16 +440,7 @@ export const StorachaMigrator: React.FC = () => {
                       uploadPercentage = Math.round((progress.uploadedBytes / progress.totalUploadBytes) * 100);
                     }
                     
-                    // Determine the current phase
-                    let currentPhase = progress.phase || 'migrating';
-                    if (downloadPercentage < 100 && downloadPercentage > 0) {
-                      currentPhase = 'downloading';
-                    } else if (downloadPercentage >= 100 && uploadPercentage < 100) {
-                      currentPhase = 'uploading';
-                    }
-                    
-                    // Determine which percentage to show in the progress bar
-                    // During download phase, show download percentage. During upload, show upload percentage.
+                    // The displayPercentage function helps determine which percentage to show
                     const displayPercentage = (prevProgress: MigrationProgress) => {
                       if (currentPhase === 'downloading') {
                         return downloadPercentage;
@@ -617,7 +634,7 @@ export const StorachaMigrator: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                Migration Mode
+                Migration Method
               </span>
             </h3>
             
@@ -646,13 +663,13 @@ export const StorachaMigrator: React.FC = () => {
                   </div>
                   <h4 className="text-lg font-medium text-gray-800 mt-4">Browser Migration</h4>
                   <p className="mt-2 text-gray-600">
-                    Use Storacha's migration tool directly in the browser. Fast and efficient for most files.
+                    Run the Storacha migration tool directly in the browser. Fast and efficient for most files.
                   </p>
                   <div className="mt-4 text-sm font-medium text-blue-700 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Requires CORS setup
+                    Requires CORS setup on your S3 bucket
                   </div>
                 </div>
               </div>
@@ -681,20 +698,20 @@ export const StorachaMigrator: React.FC = () => {
                   </div>
                   <h4 className="text-lg font-medium text-gray-800 mt-4">Server-side Migration</h4>
                   <p className="mt-2 text-gray-600">
-                    Use Storacha's migration tool on the server. Better for large files and directories.
+                    Run the Storacha migration tool on the server. Better for large files and directories.
                   </p>
                   <div className="mt-4 text-sm font-medium text-green-700 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    No CORS required
+                    No CORS setup required
                   </div>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* S3 Configuration Section */}
+        {/* S3 Configuration Section */}
           <div className="space-y-5">
             <h3 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">
               <span className="flex items-center">
@@ -706,108 +723,108 @@ export const StorachaMigrator: React.FC = () => {
             </h3>
             
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">
                     <span className="flex items-center">
                       Region <span className="text-red-500 ml-1">*</span>
                     </span>
-                  </label>
-                  <input
-                    type="text"
-                    name="s3.region"
-                    value={config.s3.region}
-                    onChange={handleInputChange}
+              </label>
+              <input
+                type="text"
+                name="s3.region"
+                value={config.s3.region}
+                onChange={handleInputChange}
                     className={`block w-full px-4 py-3 rounded-lg border ${errors.s3?.region ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors duration-200`}
-                    placeholder="e.g., us-east-1"
-                  />
-                  {errors.s3?.region && (
+                placeholder="e.g., us-east-1"
+              />
+              {errors.s3?.region && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                       {errors.s3.region}
                     </p>
-                  )}
-                </div>
-                
+              )}
+            </div>
+            
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">
                     <span className="flex items-center">
                       Bucket Name <span className="text-red-500 ml-1">*</span>
                     </span>
-                  </label>
-                  <input
-                    type="text"
-                    name="s3.bucketName"
-                    value={config.s3.bucketName}
-                    onChange={handleInputChange}
+              </label>
+              <input
+                type="text"
+                name="s3.bucketName"
+                value={config.s3.bucketName}
+                onChange={handleInputChange}
                     className={`block w-full px-4 py-3 rounded-lg border ${errors.s3?.bucketName ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors duration-200`}
-                    placeholder="e.g., my-bucket"
-                  />
-                  {errors.s3?.bucketName && (
+                placeholder="e.g., my-bucket"
+              />
+              {errors.s3?.bucketName && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                       {errors.s3.bucketName}
                     </p>
-                  )}
-                </div>
-                
+              )}
+            </div>
+            
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">
                     <span className="flex items-center">
                       Access Key ID <span className="text-red-500 ml-1">*</span>
                     </span>
-                  </label>
+              </label>
                   <div className="relative">
-                    <input
-                      type="password"
-                      name="s3.accessKeyId"
-                      value={config.s3.accessKeyId}
-                      onChange={handleInputChange}
+              <input
+                type="password"
+                name="s3.accessKeyId"
+                value={config.s3.accessKeyId}
+                onChange={handleInputChange}
                       className={`block w-full px-4 py-3 rounded-lg border ${errors.s3?.accessKeyId ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors duration-200`}
-                      placeholder="Enter your AWS Access Key ID"
-                    />
+                placeholder="Enter your AWS Access Key ID"
+              />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                       </svg>
                     </div>
                   </div>
-                  {errors.s3?.accessKeyId && (
+              {errors.s3?.accessKeyId && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
                       {errors.s3.accessKeyId}
                     </p>
-                  )}
-                </div>
-                
+              )}
+            </div>
+            
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">
                     <span className="flex items-center">
                       Secret Access Key <span className="text-red-500 ml-1">*</span>
                     </span>
-                  </label>
+              </label>
                   <div className="relative">
-                    <input
-                      type="password"
-                      name="s3.secretAccessKey"
-                      value={config.s3.secretAccessKey}
-                      onChange={handleInputChange}
+              <input
+                type="password"
+                name="s3.secretAccessKey"
+                value={config.s3.secretAccessKey}
+                onChange={handleInputChange}
                       className={`block w-full px-4 py-3 rounded-lg border ${errors.s3?.secretAccessKey ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors duration-200`}
-                      placeholder="Enter your AWS Secret Access Key"
-                    />
+                placeholder="Enter your AWS Secret Access Key"
+              />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                       </svg>
                     </div>
                   </div>
-                  {errors.s3?.secretAccessKey && (
+              {errors.s3?.secretAccessKey && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -816,23 +833,23 @@ export const StorachaMigrator: React.FC = () => {
                     </p>
                   )}
                 </div>
-              </div>
-              
+            </div>
+
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700">
                   <span className="flex items-center">
                     S3 Path <span className="text-red-500 ml-1">*</span>
                   </span>
-                </label>
-                <input
-                  type="text"
-                  name="s3.objectKey"
-                  value={config.s3.objectKey}
-                  onChange={handleInputChange}
+              </label>
+              <input
+                type="text"
+                name="s3.objectKey"
+                value={config.s3.objectKey}
+                onChange={handleInputChange}
                   className={`block w-full px-4 py-3 rounded-lg border ${errors.s3?.objectKey ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-blue-500'} focus:outline-none focus:ring-2 focus:ring-blue-200 transition-colors duration-200`}
                   placeholder={config.migrationOptions.isDirectory ? "e.g., my-directory/" : "e.g., path/to/file.txt"}
-                />
-                {errors.s3?.objectKey && (
+              />
+              {errors.s3?.objectKey && (
                   <p className="mt-1 text-sm text-red-600 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -860,10 +877,10 @@ export const StorachaMigrator: React.FC = () => {
                   </label>
                 </div>
               </div>
-            </div>
           </div>
+        </div>
 
-          {/* Storacha Configuration Section */}
+        {/* Storacha Configuration Section */}
           <div className="space-y-5">
             <h3 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">
               <span className="flex items-center">
@@ -896,11 +913,11 @@ export const StorachaMigrator: React.FC = () => {
                   {errors.storacha.email}
                 </p>
               )}
-            </div>
           </div>
+        </div>
 
-          {/* Progress Section */}
-          {logs.length > 0 && (
+        {/* Progress Section */}
+        {logs.length > 0 && (
             <div className="space-y-5 bg-gray-50 rounded-xl p-6 border border-gray-200">
               <h3 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">
                 <span className="flex items-center">
@@ -910,8 +927,8 @@ export const StorachaMigrator: React.FC = () => {
                   Migration Progress
                 </span>
               </h3>
-              
-              {/* Latest Progress Bar */}
+            
+            {/* Latest Progress Bar */}
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-700">
@@ -925,8 +942,8 @@ export const StorachaMigrator: React.FC = () => {
                     {progress.percentage.toFixed(1)}%
                   </span>
                 </div>
-                <ProgressBar
-                  progress={progress.percentage}
+            <ProgressBar
+              progress={progress.percentage}
                   color={getProgressColor()}
                   showPercentage={false}
                 />
@@ -982,58 +999,58 @@ export const StorachaMigrator: React.FC = () => {
                 )}
               </div>
 
-              {/* Logs Timeline */}
+            {/* Logs Timeline */}
               <div className="mt-6">
                 <h4 className="text-base font-medium text-gray-700 mb-3">Migration Logs</h4>
                 <div className="space-y-3 max-h-96 overflow-y-auto p-4 rounded-lg border border-gray-200 bg-white scroll-smooth">
-                  {logs.map((log) => (
-                    <div
-                      key={log.id}
+              {logs.map((log) => (
+                <div
+                  key={log.id}
                       className={`p-3 rounded-lg border-l-4 transition-all duration-200 ${getLogColor(log.level)}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg" role="img" aria-label={log.level}>
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg" role="img" aria-label={log.level}>
                             {getLogIcon(log.level, log.message)}
-                          </span>
-                          <span className="font-medium capitalize">{log.level}</span>
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="mt-2 font-mono text-sm whitespace-pre-wrap">
+                      </span>
+                      <span className="font-medium capitalize">{log.level}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(log.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="mt-2 font-mono text-sm whitespace-pre-wrap">
                         {/* Show message without emoji if the icon function provided an emoji */}
                         {/^[\p{Emoji}]/u.test(log.message)
                           ? log.message 
                           : getLogIcon(log.level, log.message) 
                             ? log.message.replace(/^[🛠✅⏳🔍📤🔗🌐📦❌⚠️📝🔍📋]/, '').trim() 
                             : log.message}
-                        {log.error && (
-                          <div className="mt-1 text-red-600">
-                            {log.error.message}
-                          </div>
-                        )}
+                    {log.error && (
+                      <div className="mt-1 text-red-600">
+                        {log.error.message}
                       </div>
-                    </div>
-                  ))}
-                  <div ref={logsEndRef} />
+                    )}
+                  </div>
                 </div>
-              </div>
+              ))}
+              <div ref={logsEndRef} />
+                </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Submit Button */}
+        {/* Submit Button */}
           <div className="pt-4">
-            <button
-              type="submit"
-              disabled={!isValid || isLoading}
-              className={`
+          <button
+            type="submit"
+            disabled={!isValid || isLoading}
+            className={`
                 w-full md:w-auto px-8 py-4 rounded-lg font-medium text-white transition-all duration-200
-                ${isValid && !isLoading
+              ${isValid && !isLoading
                   ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
-                  : 'bg-gray-300 cursor-not-allowed'
-                }
+                : 'bg-gray-300 cursor-not-allowed'
+              }
               `}
             >
               {isLoading ? (
@@ -1052,9 +1069,9 @@ export const StorachaMigrator: React.FC = () => {
                   Start Migration
                 </div>
               )}
-            </button>
-          </div>
-        </form>
+          </button>
+        </div>
+      </form>
       </div>
     </div>
   );
