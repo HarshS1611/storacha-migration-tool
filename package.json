@@ -39,11 +39,13 @@
   "homepage": "",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.750.0",
+    "@web3-storage/upload-client": "^17.1.4",
     "@web3-storage/w3up-client": "^17.1.2",
     "dotenv": "^16.4.7",
     "storacha-migration-tool": "file:"
   },
   "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
     "@types/node": "^20.11.24",
     "typescript": "^5.3.3"
   }
