@@ -16,6 +16,8 @@ import { DefaultLogger } from "./utils/DefaultLogger.js";
 import { createUniqueName } from "./utils/nameGenerator.js";
 import { S3Service } from "./services/s3Service.js";
 import { UploadListItem } from "@web3-storage/upload-client/types";
+import fs from "fs";
+import path from "path";
 
 export class StorachaMigrator implements StorachaMigratorInterface {
   private readonly config: StorachaMigratorConfig;
@@ -347,9 +349,9 @@ export class StorachaMigrator implements StorachaMigratorInterface {
    * @returns {Promise<void>}
    */
 
-  async listFilesInSpace(did: string): Promise<UploadListItem[]> {
+  async listFilesInSpace(): Promise<UploadListItem[]> {
     return await this.retryManager.withRetry(async () => {
-      this.logger.info(`📜 Listing all files in space: ${did}`);
+      this.logger.info(`📜 Listing all files in space...`);
 
       const storacha = this.connectionManager.getStorachaConnection();
       return await storacha.getAllUploads();
@@ -358,21 +360,13 @@ export class StorachaMigrator implements StorachaMigratorInterface {
 
   /**
    * Retrieves files from a space and saves them to a download folder
-   * @param {string} did - The DID of the space
    * @param {string} downloadPath - Path to save the downloaded files (defaults to './downloads')
    * @returns {Promise<{cid: string, path: string}[]>} - Array of downloaded file information
    */
-  async retrieveFilesInSpace(
-    did: string,
-    downloadPath: string = "./downloads"
-  ) {
+  async retrieveFilesInSpace(downloadPath: string = "./downloads") {
     return await this.retryManager.withRetry(async () => {
-      const listFilesInSpace = await this.listFilesInSpace(did);
-      this.logger.info(`📜 Retrieving all files in space: ${did}`);
-
-      const fs = await import("fs");
-      const path = await import("path");
-      const https = await import("https");
+      const listFilesInSpace = await this.listFilesInSpace();
+      this.logger.info(`📜 Retrieving all files in space...`);
 
       // Create download directory if it doesn't exist
       if (!fs.existsSync(downloadPath)) {
@@ -505,7 +499,7 @@ export class StorachaMigrator implements StorachaMigratorInterface {
       });
 
       return downloadResults;
-    }, `retrieve all files from space ${did}`);
+    }, `retrieve all files from space`);
   }
 
   /**
