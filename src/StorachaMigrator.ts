@@ -16,6 +16,8 @@ import { DefaultLogger } from "./utils/DefaultLogger.js";
 import { createUniqueName } from "./utils/nameGenerator.js";
 import { S3Service } from "./services/s3Service.js";
 import { UploadListItem } from "@web3-storage/upload-client/types";
+import fs from "fs";
+import path from "path";
 
 export class StorachaMigrator implements StorachaMigratorInterface {
   private readonly config: StorachaMigratorConfig;
@@ -347,9 +349,9 @@ export class StorachaMigrator implements StorachaMigratorInterface {
    * @returns {Promise<void>}
    */
 
-  async listFilesInSpace(did: string): Promise<UploadListItem[]> {
+  async listFilesInSpace(): Promise<UploadListItem[]> {
     return await this.retryManager.withRetry(async () => {
-      this.logger.info(`📜 Listing all files in space: ${did}`);
+      this.logger.info(`📜 Listing all files in space...`);
 
       const storacha = this.connectionManager.getStorachaConnection();
       return await storacha.getAllUploads();
@@ -358,21 +360,13 @@ export class StorachaMigrator implements StorachaMigratorInterface {
 
   /**
    * Retrieves files from a space and saves them to a download folder
-   * @param {string} did - The DID of the space
    * @param {string} downloadPath - Path to save the downloaded files (defaults to './downloads')
    * @returns {Promise<{cid: string, path: string}[]>} - Array of downloaded file information
    */
-  async retrieveFilesInSpace(
-    did: string,
-    downloadPath: string = "./downloads"
-  ) {
+  async retrieveFilesInSpace(downloadPath: string = "./downloads") {
     return await this.retryManager.withRetry(async () => {
-      const listFilesInSpace = await this.listFilesInSpace(did);
-      this.logger.info(`📜 Retrieving all files in space: ${did}`);
-
-      const fs = await import("fs");
-      const path = await import("path");
-      const https = await import("https");
+      const listFilesInSpace = await this.listFilesInSpace();
+      this.logger.info(`📜 Retrieving all files in space...`);
 
       // Create download directory if it doesn't exist
       if (!fs.existsSync(downloadPath)) {
@@ -505,7 +499,157 @@ export class StorachaMigrator implements StorachaMigratorInterface {
       });
 
       return downloadResults;
-    }, `retrieve all files from space ${did}`);
+    }, `retrieve all files from space`);
+  }
+
+  /**
+   * Retrieves JSON files from a space and returns them as a map of parsed JSON objects
+   * @returns {Promise<Map<string, any>>} - Map of CID to parsed JSON content
+   */
+  async retrieveJsonInSpace(): Promise<Map<string, any>> {
+    return await this.retryManager.withRetry(async () => {
+      const listFilesInSpace = await this.listFilesInSpace();
+      this.logger.info(`📜 Retrieving JSON files in space...`);
+
+      const jsonResults = new Map<string, any>();
+
+      // Track progress
+      let completedFiles = 0;
+      const totalFiles = listFilesInSpace.length;
+
+      this.eventManager.updateProgress({
+        phase: "download",
+        status: "downloading",
+        totalFiles,
+        completedFiles: 0,
+        percentage: 0,
+      });
+
+      // Process each file
+      for (const file of listFilesInSpace) {
+        try {
+          const cid = file.root.toString();
+          this.eventManager.updateProgress({
+            currentFile: cid,
+          });
+
+          // Check the content type for this CID
+          const gatewayUrl = `https://${cid}.ipfs.w3s.link`;
+          this.logger.info(`Checking content type for CID: ${cid}`);
+
+          // Get the content as text
+          const content = await this.fetchContent(gatewayUrl);
+
+          // Check if content is HTML and contains directory listing
+          if (content.includes("<html") && content.includes(`/ipfs/${cid}/`)) {
+            this.logger.info(
+              `CID ${cid} is a directory, extracting JSON files...`
+            );
+
+            // Parse HTML to extract file links
+            const fileLinks = this.extractFileLinksFromHtml(content);
+
+            if (fileLinks.length === 0) {
+              this.logger.info(`No files found in directory ${cid}`);
+              continue;
+            }
+
+            this.logger.info(
+              `Found ${fileLinks.length} files in directory ${cid}`
+            );
+
+            // Process each file in the directory
+            for (const fileLink of fileLinks) {
+              const filename = fileLink.filename;
+              const fileCid = fileLink.cid;
+
+              // Skip parent directory links
+              if (filename === "..") continue;
+
+              // Only process JSON files
+              if (!filename.toLowerCase().endsWith(".json")) {
+                this.logger.info(`Skipping non-JSON file: ${filename}`);
+                continue;
+              }
+
+              const fileUrl = `https://${fileCid}.ipfs.w3s.link`;
+              this.logger.info(`Fetching JSON: ${filename} (CID: ${fileCid})`);
+              this.eventManager.updateProgress({
+                currentFile: filename,
+              });
+
+              // Fetch the JSON content
+              const jsonContent = await this.fetchContent(fileUrl);
+
+              try {
+                // Parse the JSON content
+                const jsonObject = JSON.parse(jsonContent);
+                const keyName = filename.endsWith(".json")
+                  ? filename.slice(0, -5)
+                  : filename;
+                jsonResults.set(keyName, jsonObject);
+                this.logger.info(`✅ Parsed JSON for ${filename}`);
+              } catch (parseError) {
+                this.logger.error(
+                  `❌ Failed to parse JSON for ${filename}: ${parseError}`
+                );
+                this.eventManager.emit(
+                  "error",
+                  parseError instanceof Error
+                    ? parseError
+                    : new Error(String(parseError)),
+                  filename
+                );
+              }
+
+              // Update progress
+              completedFiles++;
+              this.eventManager.updateProgress({
+                completedFiles,
+                percentage: (completedFiles / totalFiles) * 100,
+              });
+            }
+          } else {
+            // It's a single file, check if it's JSON and process it directly
+            try {
+              // Try to parse as JSON
+              const jsonObject = JSON.parse(content);
+
+              // If we get here, it's valid JSON
+              const filename = `file-${cid.slice(0, 8)}`;
+              this.logger.info(`✅ Parsed JSON for CID: ${cid}`);
+              jsonResults.set(filename, jsonObject);
+
+              // Update progress
+              completedFiles++;
+              this.eventManager.updateProgress({
+                completedFiles,
+                percentage: (completedFiles / totalFiles) * 100,
+              });
+            } catch (parseError) {
+              // Not a valid JSON file, skip it
+              this.logger.info(`Skipping non-JSON file with CID: ${cid}`);
+            }
+          }
+        } catch (error) {
+          this.logger.error(
+            `❌ Failed to process file with CID ${file.root.toString()}: ${error}`
+          );
+          this.eventManager.emit(
+            "error",
+            error instanceof Error ? error : new Error(String(error)),
+            file.root.toString()
+          );
+        }
+      }
+
+      this.eventManager.updateProgress({
+        status: "completed",
+        phase: "completed",
+      });
+
+      return jsonResults;
+    }, `retrieve JSON files from space`);
   }
 
   /**

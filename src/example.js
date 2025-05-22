@@ -4,18 +4,18 @@ dotenv.config();
 
 async function main() {
   const migrator = new StorachaMigrator({
-    s3: {
-      bucketName: process.env.S3_BUCKET_NAME || "my-bucket",
-      region: process.env.S3_REGION || "us-east-1",
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
-      },
-    },
-    mongodb: {
-      uri: process.env.MONGODB_URI || "mongodb://localhost:27017",
-      dbName: process.env.MONGODB_DB_NAME || "test",
-    },
+    // s3: {
+    //   bucketName: process.env.S3_BUCKET_NAME || "my-bucket",
+    //   region: process.env.S3_REGION || "us-east-1",
+    //   credentials: {
+    //     accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    //     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+    //   },
+    // },
+    // mongodb: {
+    //   uri: process.env.MONGODB_URI || "mongodb://localhost:27017",
+    //   dbName: process.env.MONGODB_DB_NAME || "test",
+    // },
     storacha: {
       email: process.env.STORACHA_EMAIL || "",
     },
@@ -56,11 +56,18 @@ async function main() {
     // await migrator.migrateMongoDb('cohort1');
 
     // List all updloaded files
-    const res = await migrator.listFilesInSpace("did:key:z6MknM…tKkG");
-    console.log("Uploads:", res);
+    // const res = await migrator.listFilesInSpace();
+    // console.log("Uploads:", res);
 
-    const res2 = await migrator.retrieveFilesInSpace("did:key:z6MknM…tKkG");
-    console.log("Files:", res2);
+    // const results = await migrator.retrieveFilesInSpace();
+    // console.log("Files:", results);
+
+    const jsonMap = await migrator.retrieveJsonInSpace();
+    console.log("Json Keys:", jsonMap.keys());
+    const cohort2 = jsonMap.get("cohort2");
+    console.log("Some Cohort 2 data:", cohort2[0]);
+    const cohort2feedback = jsonMap.get("cohort2feedback");
+    console.log("Some Cohort 2 feedback data:", cohort2feedback[0]);
 
     /* const res = await migrator.listSpaces();
        console.log('Spaces:', res);
