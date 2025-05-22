@@ -59,8 +59,15 @@ async function main() {
     // const res = await migrator.listFilesInSpace();
     // console.log("Uploads:", res);
 
-    const results = await migrator.retrieveFilesInSpace();
-    console.log("Files:", results);
+    // const results = await migrator.retrieveFilesInSpace();
+    // console.log("Files:", results);
+
+    const jsonMap = await migrator.retrieveJsonInSpace();
+    console.log("Json Keys:", jsonMap.keys());
+    const cohort2 = jsonMap.get("cohort2");
+    console.log("Some Cohort 2 data:", cohort2[0]);
+    const cohort2feedback = jsonMap.get("cohort2feedback");
+    console.log("Some Cohort 2 feedback data:", cohort2feedback[0]);
 
     /* const res = await migrator.listSpaces();
        console.log('Spaces:', res);
