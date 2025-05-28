@@ -29,27 +29,18 @@ A Next.js application that demonstrates downloading files from Amazon S3 and upl
 
    ```bash
    git clone https://github.com/HarshS1611/storacha-migration-tool.git
-   cd storacha-migration-tool
+   cd examples/nextjs-migration-ui
    ```
 
 2. **Install Dependencies and Link Library**
 
    ```bash
-   # Install the main library dependencies
-   npm install
-   
-   # Build the library
-   npm run build
-   
-   # Create a global link for the library
-   npm link
-   
    # Install the Next.js UI example dependencies
    cd examples/nextjs-migration-ui
    npm install
-   
-   # Link to the local library
-   npm link storacha-migration-tool
+
+   # Build the library
+   npm run build
    ```
 
 3. **Start the Development Server**
