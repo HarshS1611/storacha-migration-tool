@@ -47,7 +47,7 @@ async function main() {
       }
     });
 
-    const result = await migrator.migrateDirectory('images')
+    const result = await migrator.migrateFile('images1/3.avif');
     await ui.showMigrationSummary(result);
 
   } catch (error) {
