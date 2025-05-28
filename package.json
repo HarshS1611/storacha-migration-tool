@@ -27,11 +27,11 @@
     "storacha",
     "ipfs"
   ],
-  "author": "Protocol Labs Dev Guild",
+  "author": "Harsh Singh harshsingh16d@gmail.com",
   "license": "(Apache-2.0 OR MIT)",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/HarshS1611/storacha-migration-tool.git"
   },
   "bugs": {
     "url": ""
