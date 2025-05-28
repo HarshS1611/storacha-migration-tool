@@ -1,22 +1,19 @@
-# Basic Migration Example
+# Directory Migration Example
 
-This example demonstrates how to use the Storacha Migration Tool to migrate files from AWS S3 to Storacha (Web3.Storage).
+This example demonstrates how to use the Storacha Migration Tool to migrate direc from AWS S3 to Storacha (Web3.Storage).
 
 ## Setup
 
-1. First, build and link the main library:
+1. First, clone the repository:
 ```bash
-# In the root directory (storacha-migration-tool)
-npm install
-npm run build
-npm link
+git clone <repository-url>
+cd examples/directory-migration
 ```
 
 2. Set up the example project:
 ```bash
 # In examples/directory-migration
 npm install
-npm link storacha-migration-tool
 ```
 
 3. Create a `.env` file in this directory with your credentials:
@@ -57,23 +54,8 @@ Size: 25.5 MB / 76.2 MB
 Time: 2m 15s remaining
 ```
 
-## Troubleshooting
-
-If you encounter any issues:
-
-1. Make sure you've built the main library:
-```bash
-cd ../..
-npm run build
-```
-
-2. Try relinking:
-```bash
-# In the root directory
-npm link
-
 # In examples/directory-migration
-npm link storacha-migration-tool
+npm install storacha-migration-tool
 ```
 
 3. Check your .env file has all required credentials
