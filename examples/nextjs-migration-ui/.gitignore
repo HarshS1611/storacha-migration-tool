@@ -49,3 +49,5 @@ Thumbs.db
 # Project specific
 .qodo
 logs/
+
+cache/

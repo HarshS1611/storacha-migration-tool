@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npx next dev --no-warnings",
+    "dev": "npx next dev",
     "build": "npx next build",
-    "start": "npx next start --no-warnings",
+    "start": "npx next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -18,8 +18,7 @@
     "react-dom": "18.2.0",
     "react-dropzone": "^14.2.3",
     "react-icons": "^4.10.1",
-    "storacha-migration-tool": "file:../../",
-    "storacha-migration-ui": "file:",
+    "storacha-migration-tool": "^1.0.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

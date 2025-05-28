@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { StorachaMigrator, MigrationProgress } from 'storacha-migration-tool';
+import { StorachaMigrator } from 'storacha-migration-tool';
 import chalk from 'chalk'; // For better console formatting
 import ora from 'ora'; // For better loading indicators
 import MigrationUI from './utils/migrationUI.js'; // Custom UI for migration status
