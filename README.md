@@ -66,8 +66,11 @@ await migrator.close();
 
 ## Features
 
-- Single file migration
-- Directory migration with batch processing
+- Single file migration `migrateFile()`
+- Directory migration with batch processing `migrateDirectory()`
+- Create new spaces `createSpace()`
+- List Spaces `listSpaces()`
+- List files uploaded `listFilesInSpace()`
 - Progress tracking
 - Error handling and retries
 - Type safety with TypeScript
@@ -119,15 +122,9 @@ git clone <repository-url>
 cd storacha-migration-tool
 ```
 
-2. Install dependencies:
-```bash
-npm install
-npm run build
-```
-
 3. Set up the example:
 ```bash
-cd examples/basic-migration
+cd examples/lib-example
 npm install
 ```
 
