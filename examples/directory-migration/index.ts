@@ -38,7 +38,7 @@ ${chalk.blue('Elapsed')}: ${chalk.yellow(progress.elapsedTime)}
 
   private createShardInfo(progress: MigrationProgress): string {
     if (!progress.shardProgress) return '';
-    
+
     const { shardIndex, totalShards, percentage } = progress.shardProgress;
     return `
 ${chalk.bold('🔄 Shard Progress')}
@@ -71,7 +71,7 @@ Batch: ${progress.currentBatch}/${progress.totalBatches}
 
   private createRetryInfo(progress: MigrationProgress): string {
     if (progress.retryCount === 0) return '';
-    
+
     return `
 ${chalk.bold('🔁 Retry Information')}
 ${chalk.gray('─'.repeat(50))}
@@ -85,9 +85,9 @@ Attempts: ${progress.retryCount}/${progress.maxRetries}
     return `
 ${chalk.bold.red('⚠️ Errors')}
 ${chalk.gray('─'.repeat(50))}
-${progress.errors.map(({ file, error }) => 
-  `${chalk.red('✗')} ${file}: ${error.message}`
-).join('\n')}
+${progress.errors.map(({ file, error }) =>
+      `${chalk.red('✗')} ${file}: ${error.message}`
+    ).join('\n')}
     `;
   }
 
@@ -171,7 +171,7 @@ async function main() {
   try {
     spinner.text = 'Initializing Storacha client...';
     await migrator.initialize();
-    
+
     spinner.succeed('Initialization complete');
 
     migrator.onProgress(ui.updateProgress.bind(ui));
@@ -182,7 +182,7 @@ async function main() {
       }
     });
 
-    const result = await migrator.migrateDirectory('images');
+    const result = await migrator.migrateFile('HarshSinghResume.pdf');
     await ui.showMigrationSummary(result);
 
   } catch (error) {

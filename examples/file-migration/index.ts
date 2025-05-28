@@ -51,7 +51,7 @@ async function main() {
       console.error(`\n❌ Error migrating ${fileKey}: ${error.message}`);
     });
 
-    await migrator.migrateFile('images1/0.png');
+    await migrator.migrateFile('HarshSinghResume.pdf');
     console.log('\n✅ Migration completed successfully!\n');
 
   } catch (error) {

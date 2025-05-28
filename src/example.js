@@ -40,12 +40,12 @@ async function main() {
 
     // await migrator.migrateFile('HarshSinghResume.pdf');
 
-    // await migrator.migrateDirectory('images1');
+    await migrator.migrateDirectory('images1');
 
-    const res = await migrator.listSpaces();
-    console.log('Spaces:', res);
-    const res2 = await migrator.listFilesInSpace();
-    console.log('Files in space:', res2);
+    // const res = await migrator.listSpaces();
+    // console.log('Spaces:', res);
+    // const res2 = await migrator.listFilesInSpace();
+    // console.log('Files in space:', res2);
   } catch (error) {
     console.error('Migration failed:', error);
   } finally {

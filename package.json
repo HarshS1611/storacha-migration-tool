@@ -42,6 +42,7 @@
     "@web3-storage/upload-client": "^17.1.4",
     "@web3-storage/w3up-client": "^17.1.2",
     "dotenv": "^16.4.7",
+    "formdata-node": "^6.0.3",
     "storacha-migration-tool": "file:"
   },
   "devDependencies": {
