@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import { StorachaMigrator } from 'storacha-migration-tool';
-import type { MigrationProgress } from 'storacha-migration-tool';
 
 dotenv.config();
 
