@@ -45,7 +45,7 @@ async function main() {
     const result = await migrator.listSpaces();
     console.log("Spaces:", result);
 
-    const fetchUploads = await migrator.listFilesInSpace();
+    const fetchUploads = await migrator.listFilesInSpace('did:key:z6Mkr7cUTeeRx7886gtVDhunbAgg7dNxwR9Ldk3jTS9wRQ4d');
     console.log("Uploads:", fetchUploads);
 
   } catch (error) {

@@ -93,8 +93,10 @@ declare module 'storacha-migration-tool' {
     close(): Promise<void>;
     migrateFile(fileKey: string): Promise<UploadResponse>;
     migrateDirectory(directoryPath: string): Promise<UploadResponse>;
-    listSpaces(): Promise<string[]>;
-    listFilesInSpace(): Promise<string[]>;
+    createSpace(): Promise<SpaceResponse>;
+    setSpace(did: string): Promise<SpaceResponse>;
+    listSpaces(): Promise<SpaceResponse[]>;
+    listFilesInSpace(did: string): Promise<UploadListItem[]>
     onProgress(callback: (progress: MigrationProgress) => void): void;
     onError(callback: (error: Error, fileKey?: string) => void): void;
   }
